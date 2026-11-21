@@ -106,6 +106,7 @@ namespace LosSantosRED.lsr
                 x != null && string.Equals(x.ID, requestID, StringComparison.OrdinalIgnoreCase));
             if (request == null || request.Status != InvestigationAccessRequestStatus.Pending ||
                 cancelledAt < request.RequestedAt ||
+                (request.ExpiresAt.HasValue && cancelledAt >= request.ExpiresAt.Value) ||
                 !string.Equals(request.RequestingAgencyID, requestingAgencyID, StringComparison.OrdinalIgnoreCase))
                 return false;
             request.Status = InvestigationAccessRequestStatus.Cancelled;
