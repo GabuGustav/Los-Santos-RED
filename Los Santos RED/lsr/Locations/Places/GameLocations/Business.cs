@@ -351,6 +351,7 @@ public class Business : GameLocation, ILocationSetupable, IRestableLocation, IIn
     }
     protected override void OnSold()
     {
+        RecordOwnershipChange(false);
         Reset();
         RemoveOwnership();
         IsOwned = false;
@@ -373,6 +374,7 @@ public class Business : GameLocation, ILocationSetupable, IRestableLocation, IIn
     {
         Player.BankAccounts.GiveMoney(-1 * PurchasePrice, true);
         IsOwned = true;
+        RecordOwnershipChange(true);
         if(IsPayoutInModItems)
         {
             ModItemToPayout = PossibleModItemPayouts.FirstOrDefault();
@@ -386,6 +388,15 @@ public class Business : GameLocation, ILocationSetupable, IRestableLocation, IIn
         DatePayoutDue = DatePayoutPaid.AddDays(PayoutFrequency);
         CurrentSalesPrice = SalesPrice;
     }
+    private void RecordOwnershipChange(bool acquired)
+    {
+        Mod.Player modPlayer = Player as Mod.Player;
+        if (modPlayer?.LawEnforcementIntelligence == null) return;
+        modPlayer.LawEnforcementIntelligence.RecordBusinessOwnership(
+            modPlayer.CurrentDateTime, Name,
+            EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z, acquired);
+    }
+
     private void UpdateStoredData()
     {
         ButtonPromptText = GetButtonPromptText();
