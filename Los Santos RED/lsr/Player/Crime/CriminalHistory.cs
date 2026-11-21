@@ -99,7 +99,7 @@ namespace LosSantosRED.lsr
             if (crimeIDs.Count == 0)
                 return;
 
-            bool lethalCrime = identifiedCrimes.Any(x => x.AssociatedCrime.ResultsInLethalForce);
+            bool lethalCrime = identifiedCrimes.Any(x => x.AssociatedCrime.CanBeLethal);
             WarrantPriority priority = lethalCrime || CurrentHistory.WantedLevel >= 5
                 ? WarrantPriority.Critical
                 : CurrentHistory.WantedLevel >= 4
