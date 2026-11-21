@@ -35,7 +35,7 @@ namespace LosSantosRED.lsr
         private int LastWantedMaxLevel => CurrentHistory == null ? 0 : CurrentHistory.WantedLevel;
         private float SearchRadius => LastWantedMaxLevel > 0 ? LastWantedMaxLevel * Settings.SettingsManager.CriminalHistorySettings.SearchRadiusIncrement : Settings.SettingsManager.CriminalHistorySettings.MinimumSearchRadius;// 400f;
         public bool HasHistory => CurrentHistory != null;
-        public bool HasDeadlyHistory => CurrentHistory != null && CurrentHistory.Crimes.Any(x => x.AssociatedCrime.CanBeLethal);
+        public bool HasDeadlyHistory => CurrentHistory != null && CurrentHistory.Crimes.Any(x => x.AssociatedCrime.ResultsInLethalForce);
         public int MaxWantedLevel => LastWantedMaxLevel;
         public List<Crime> WantedCrimes => CurrentHistory?.Crimes.Select(x => x.AssociatedCrime).ToList();
         public void Dispose()
@@ -99,7 +99,7 @@ namespace LosSantosRED.lsr
             if (crimeIDs.Count == 0)
                 return;
 
-            bool lethalCrime = identifiedCrimes.Any(x => x.AssociatedCrime.CanBeLethal);
+            bool lethalCrime = identifiedCrimes.Any(x => x.AssociatedCrime.ResultsInLethalForce);
             WarrantPriority priority = lethalCrime || CurrentHistory.WantedLevel >= 5
                 ? WarrantPriority.Critical
                 : CurrentHistory.WantedLevel >= 4
