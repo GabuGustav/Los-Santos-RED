@@ -45,6 +45,8 @@ public class Dispatcher
     public TaxiDispatcher TaxiDispatcher { get; private set; }
     public FIBSurveillanceDispatcher FIBSurveillanceDispatcher { get; private set; }
     public ResidenceOperationsDispatcher ResidenceOperationsDispatcher { get; private set; }
+    private uint LastFIBSurveillanceErrorLogAt;
+    private uint LastResidenceOperationsErrorLogAt;
 
     public Dispatcher(IEntityProvideable world, IDispatchable player, IAgencies agencies, ISettingsProvideable settings, IStreets streets, IZones zones, IJurisdictions jurisdictions, IWeapons weapons, INameProvideable names, ICrimes crimes,
         IPedGroups pedGroups, IGangs gangs, IGangTerritories gangTerritories, IShopMenus shopMenus, IPlacesOfInterest placesOfInterest, IWeatherReportable weatherReporter, ITimeControllable time, IModItems modItems, 
@@ -123,7 +125,11 @@ public class Dispatcher
         }
         catch (Exception ex)
         {
-            EntryPoint.WriteToConsole("FIB surveillance update failed: " + ex);
+            if (LastFIBSurveillanceErrorLogAt == 0 || Game.GameTime - LastFIBSurveillanceErrorLogAt >= 10000)
+            {
+                EntryPoint.WriteToConsole("FIB surveillance update failed: " + ex);
+                LastFIBSurveillanceErrorLogAt = Game.GameTime;
+            }
         }
         try
         {
@@ -131,7 +137,11 @@ public class Dispatcher
         }
         catch (Exception ex)
         {
-            EntryPoint.WriteToConsole("Residence operations update failed: " + ex);
+            if (LastResidenceOperationsErrorLogAt == 0 || Game.GameTime - LastResidenceOperationsErrorLogAt >= 10000)
+            {
+                EntryPoint.WriteToConsole("Residence operations update failed: " + ex);
+                LastResidenceOperationsErrorLogAt = Game.GameTime;
+            }
         }
 
         //int vehicleCount = World.Vehicles.AllVehicleList.Count();
