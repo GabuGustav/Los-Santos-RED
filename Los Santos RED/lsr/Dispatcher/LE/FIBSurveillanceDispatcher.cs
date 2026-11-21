@@ -89,6 +89,7 @@ public class FIBSurveillanceDispatcher
                 // then allow a replacement team after a short reacquisition cooldown.
                 SurveillanceAssignmentManager assignmentManager =
                     modPlayer.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager;
+                savedAssignment.LastStateChangedAt = modPlayer.CurrentDateTime;
                 if (savedAssignment.State != SurveillanceAssignmentState.Disengaging &&
                     savedAssignment.State != SurveillanceAssignmentState.Compromised)
                     assignmentManager?.Transition(savedAssignment, SurveillanceAssignmentState.Disengaging,
