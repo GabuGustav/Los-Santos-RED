@@ -159,6 +159,10 @@ public class AIApprehend : ComplexTask
             if (Ped.IsInVehicle) return Task.ExitVehicle;
             return Task.TrafficStopApproachDriver;
         }
+        if (IsANPREvasionPursuit && Player != null && Player.IsInVehicle && !Ped.IsInVehicle)
+        {
+            return ShouldGetBackInCar ? Task.EnterVehicle : Task.Nothing;
+        }
         if (CurrentAIDynamic == AIDynamic.Cop_InVehicle_Player_InVehicle)
         {
             if (ShouldExitPoliceVehicle)
@@ -556,7 +560,8 @@ public class AIApprehend : ComplexTask
             else
                 modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
 
-            if (CurrentTrafficStopStage == TrafficStopStage.Refused &&
+            if ((CurrentTrafficStopStage == TrafficStopStage.AwaitingCompliance ||
+                 CurrentTrafficStopStage == TrafficStopStage.Refused) &&
                 ((Player.IsInVehicle && Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
                   Player.CurrentVehicle.Vehicle.Speed >= 3.0f) ||
                  (!Player.IsInVehicle && Player.Position.DistanceTo2D(OtherTarget.Pedestrian.Position) >= 7.0f)))
