@@ -256,7 +256,7 @@ public class ResidenceOperationsDispatcher
 
         if (operation.Stage == PoliceOperationStage.Entry)
         {
-            if (Player.IsDead || !IsPlayerAtResidence(runtime.Residence))
+            if (Player.IsDead || !IsPlayerAtResidenceOrEntrance(runtime.Residence))
             {
                 manager.AbortIfPlayerAbsent(intelligence, operation.ID, now);
                 return;
