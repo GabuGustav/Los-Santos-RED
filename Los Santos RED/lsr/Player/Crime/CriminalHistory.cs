@@ -288,8 +288,11 @@ namespace LosSantosRED.lsr
                 //EntryPoint.WriteToConsole("CRIMINAL HISTORY EVENT: History Expired (Calendar Time)");
             }    
 
-            if(Player.IsWanted && Player.PoliceResponse.WantedLevelHasBeenRadioedIn && HasHistory)
+            if (Player.IsWanted && Player.PoliceResponse.WantedLevelHasBeenRadioedIn && HasHistory)
             {
+                // The active pursuit has replaced the escaped-suspect APB. Retire the
+                // persistent person BOLO as well as the legacy in-memory history.
+                ClearLawEnforcementBOLO();
                 CurrentHistory = null;
             }
         }
