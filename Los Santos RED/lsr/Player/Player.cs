@@ -1388,7 +1388,13 @@ namespace Mod
             GameFiber.Yield();
             if (WantedLevel > 1)
             {
-                CriminalHistory.OnSuspectEluded(PoliceResponse.CrimesObserved.ToList(), PlacePoliceLastSeenPlayer);
+                List<CrimeEvent> identifiedCrimes = PoliceResponse.CrimesObserved
+                    .Concat(PoliceResponse.CrimesReported)
+                    .Where(x => x?.AssociatedCrime != null)
+                    .GroupBy(x => x.AssociatedCrime.ID)
+                    .Select(x => x.First())
+                    .ToList();
+                CriminalHistory.OnSuspectEluded(identifiedCrimes, PlacePoliceLastSeenPlayer);
                 Scanner.OnSuspectEluded();
             }
             else if(WantedLevel == 1)
