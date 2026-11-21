@@ -450,7 +450,9 @@ public class FIBSurveillanceDispatcher
         SurveillanceAssignment assignment, DateTime now, RuntimeTeam team)
     {
         bool inVehicle = Player.IsInVehicle && Player.CurrentVehicle != null &&
-            Player.CurrentVehicle.Vehicle != null && Player.CurrentVehicle.Vehicle.Exists();
+            Player.CurrentVehicle.Vehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
+            Player.CurrentVehicle.Vehicle.Driver != null && Player.CurrentVehicle.Vehicle.Driver.Exists() &&
+            Player.CurrentVehicle.Vehicle.Driver.Handle == Player.Character.Handle;
         string vehicleID = null;
         string vehicleDescription = null;
         if (inVehicle)
