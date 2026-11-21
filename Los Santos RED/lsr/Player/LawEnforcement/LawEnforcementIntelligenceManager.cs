@@ -86,7 +86,7 @@ namespace LosSantosRED.lsr
 
             intelligence.Normalize();
             if (settings.EnableWarrants)
-                WarrantManager.UpdateExpirations(intelligence, currentTime);
+                WarrantManager.UpdateExpirations(intelligence, currentTime, settings);
             if (settings.EnableBOLOSystem)
                 BOLOManager.Update(intelligence, currentTime);
 
