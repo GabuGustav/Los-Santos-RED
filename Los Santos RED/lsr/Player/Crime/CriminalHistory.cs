@@ -108,25 +108,8 @@ namespace LosSantosRED.lsr
                         ? WarrantPriority.Moderate
                         : WarrantPriority.Low;
 
-            Residence suspectedResidence = (modPlayer.CurrentLocation?.CurrentInterior as ResidenceInterior)?.Residence;
-            if (suspectedResidence == null || suspectedResidence.ResidenceID < 0 ||
-                (!suspectedResidence.IsOwned && !suspectedResidence.IsRented))
-            {
-                suspectedResidence = modPlayer.Properties?.PropertyList?.OfType<Residence>()
-                    .FirstOrDefault(x => x != null && x.ResidenceID >= 0 && (x.IsOwned || x.IsRented));
-            }
-
-            string residenceID = suspectedResidence == null
-                ? null
-                : suspectedResidence.ResidenceID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            float residenceConfidence = suspectedResidence == null
-                ? 0f
-                : suspectedResidence.IsOwned ? 0.9f : 0.8f;
-            if (suspectedResidence != null && modPlayer.CurrentLocation?.IsInside == true &&
-                (modPlayer.CurrentLocation.CurrentInterior as ResidenceInterior)?.Residence?.ResidenceID ==
-                suspectedResidence.ResidenceID)
-                residenceConfidence = 0.98f;
-
+            // Residence data is supplied only by verified patrol/FIB observations.
+            // Property ownership alone must not be treated as proof that the player lives there.
             LawEnforcementIntelligence intelligence = modPlayer.LawEnforcementIntelligence;
             if (intelligence == null)
                 return;
@@ -142,8 +125,8 @@ namespace LosSantosRED.lsr
                     modPlayer.AssignedAgency?.ID ?? "LSPD",
                     jurisdictionID,
                     crimeIDs,
-                    residenceID,
-                    residenceConfidence);
+                    null,
+                    0f);
             }
             else
             {
@@ -154,13 +137,6 @@ namespace LosSantosRED.lsr
                         warrant.LinkedCrimeIDs.Add(crimeID);
                 if (priority > warrant.Priority)
                     warrant.Priority = priority;
-                if (!string.IsNullOrWhiteSpace(residenceID) &&
-                    (string.IsNullOrWhiteSpace(warrant.SuspectedResidenceID) ||
-                     residenceConfidence > warrant.ResidenceConfidence))
-                {
-                    warrant.SuspectedResidenceID = residenceID;
-                    warrant.ResidenceConfidence = residenceConfidence;
-                }
                 intelligence.LastUpdatedAt = modPlayer.CurrentDateTime;
             }
 
