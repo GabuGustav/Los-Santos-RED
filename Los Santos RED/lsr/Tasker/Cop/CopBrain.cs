@@ -379,7 +379,7 @@ public class CopBrain : PedBrain
             float boloChance = modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.GetVehicleStopChance(
                 modPlayer.LawEnforcementIntelligence, modPlayer.CurrentDateTime,
                 modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
-                vehicle.Vehicle.LicensePlate, vehicle.FullName(false)) ?? 0f;
+                vehicle.Vehicle.LicensePlate, vehicle.FullName(false), Cop.AssignedAgency?.ID) ?? 0f;
             recognizedByActiveBOLO = boloChance > 0f &&
                 RandomItems.RandomPercent(boloChance * 100f);
         }
