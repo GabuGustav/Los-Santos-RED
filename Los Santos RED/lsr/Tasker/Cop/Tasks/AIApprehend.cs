@@ -73,6 +73,7 @@ public class AIApprehend : ComplexTask
         PullOver = 22,
         HeliProtect = 23
     };
+    private enum TrafficStopStage { Approaching, AwaitingCompliance, Refused, Checking, Resolving, Completed }
     private enum SubTask
     {
         Shoot,
@@ -96,6 +97,8 @@ public class AIApprehend : ComplexTask
     public bool IsWarrantApprehension { get; set; }
     private bool IsCancelled;
     private bool HasIssuedTrafficStopExit;
+    private TrafficStopStage CurrentTrafficStopStage = TrafficStopStage.Approaching;
+    private uint GameTimeTrafficStopStageStarted;
 
     private bool ShouldChaseRecklessly => OtherTarget.IsDeadlyChase;
     private bool ShouldChaseVehicleInVehicle => Ped.IsDriver && Ped.Pedestrian.CurrentVehicle.Exists() && !ShouldExitPoliceVehicle && OtherTarget.IsInVehicle;
@@ -138,6 +141,8 @@ public class AIApprehend : ComplexTask
     }
     private Task GetCurrentTaskDynamic()
     {
+        if (IsTrafficStop && CurrentTrafficStopStage == TrafficStopStage.Completed)
+            return Ped.IsInVehicle || !CopsVehicle.Exists() ? Task.Nothing : Task.EnterVehicle;
         if (IsTrafficStop && Player != null)
         {
             if (Player.IsInVehicle)
@@ -310,6 +315,8 @@ public class AIApprehend : ComplexTask
                     }
                     prevIsChasingSlowly = IsChasingSlowly;
                 }
+
+                if (IsTrafficStop) UpdateTrafficStopInteraction();
 
                 if (Ped.IsInVehicle && Ped.Pedestrian.Exists())
                 {
@@ -911,6 +918,7 @@ public class AIApprehend : ComplexTask
     public override void Stop()
     {
         IsCancelled = true;
+        (Player as Mod.Player)?.ButtonPrompts?.RemovePrompts("TrafficStop");
     }
     private void FootChaseLoop()
     {
