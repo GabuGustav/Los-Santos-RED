@@ -79,7 +79,8 @@ namespace LosSantosRED.lsr
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt).ToList();
         }
 
-        public void UpdateExpirations(LawEnforcementIntelligence intelligence, DateTime currentTime)
+        public void UpdateExpirations(LawEnforcementIntelligence intelligence, DateTime currentTime,
+            LawEnforcementIntelligenceSettings settings = null)
         {
             if (intelligence == null || intelligence.Warrants == null || currentTime == DateTime.MinValue)
                 return;
@@ -89,6 +90,44 @@ namespace LosSantosRED.lsr
             {
                 intelligence.ResolveWarrant(warrant.ID, WarrantStatus.Expired, currentTime,
                     "Warrant expired at its configured expiration time.");
+            }
+
+            if (intelligence.BOLOs == null) return;
+            foreach (WarrantRecord warrant in intelligence.Warrants.Where(x => x != null &&
+                IsArrestAuthority(x.Type)).ToList())
+            {
+                List<BOLORecord> linkedBOLOs = intelligence.BOLOs.Where(bolo => bolo != null &&
+                    string.Equals(bolo.LinkedWarrantID, warrant.ID, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (warrant.Status != WarrantStatus.Active)
+                {
+                    foreach (BOLORecord bolo in linkedBOLOs.Where(x => x.Status == BOLOStatus.Active))
+                    {
+                        bolo.Status = BOLOStatus.Cancelled;
+                        bolo.Notes = (bolo.Notes ?? string.Empty) + " Warrant is no longer active.";
+                    }
+                    continue;
+                }
+
+                // One person BOLO per warrant. Existing resolved/cancelled records are retained
+                // as history and are not silently re-issued.
+                if (linkedBOLOs.Count > 0 || settings == null || !settings.EnableBOLOSystem)
+                    continue;
+
+                settings.Normalize();
+                IntelligenceObservation lastKnownObservation = intelligence.Observations?
+                    .Where(observation => observation != null && observation.IsKnownToPolice &&
+                        observation.IsVerified && observation.ObservedAt <= currentTime)
+                    .OrderByDescending(observation => observation.ObservedAt).FirstOrDefault();
+
+                BOLORecord boloRecord = intelligence.IssueBOLO(currentTime, BOLOTargetType.Person,
+                    "Wanted person associated with an active " + warrant.Type + " warrant.",
+                    null, null, null, lastKnownObservation?.LocationID, warrant.ExpiresAt,
+                    settings.BOLOInZoneStopChance / 100f,
+                    settings.BOLOOutOfZoneStopChance / 100f,
+                    "AUTO_WARRANT_BOLO:" + warrant.ID);
+                if (boloRecord != null)
+                    boloRecord.LinkedWarrantID = warrant.ID;
             }
         }
 
