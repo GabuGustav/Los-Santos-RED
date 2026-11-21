@@ -431,7 +431,32 @@ namespace LosSantosRED.lsr
         // Activity records are not automatically police-known; a later evidence source must establish access.
         public bool RecordBusinessVisit(DateTime observedAt, string businessName, float x, float y, float z)
         {
-            return RecordBusinessActivity(observedAt, businessName, x, y, z, IntelligenceEvidenceType.BusinessVisit, "Player visited this business.");
+            bool recorded = RecordBusinessActivity(observedAt, businessName, x, y, z,
+                IntelligenceEvidenceType.BusinessVisit, "Player visited this business.");
+            if (observedAt == DateTime.MinValue || Observations == null)
+                return recorded;
+
+            IntelligenceObservation nearbySighting = Observations
+                .Where(x => x != null && x.IsKnownToPolice && x.IsVerified &&
+                    x.TargetType == IntelligenceTargetType.Person &&
+                    string.Equals(x.TargetID, SubjectID, StringComparison.OrdinalIgnoreCase) &&
+                    (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
+                    x.ObservedAt <= observedAt && observedAt - x.ObservedAt <= TimeSpan.FromSeconds(30))
+                .OrderByDescending(x => x.ObservedAt)
+                .FirstOrDefault(x =>
+                {
+                    float dx = x.PositionX - x;
+                    float dy = x.PositionY - y;
+                    return dx * dx + dy * dy <= 35f * 35f;
+                });
+
+            if (nearbySighting != null)
+            {
+                RecordRecentBusinessVisitObservation(observedAt, nearbySighting.Source,
+                    nearbySighting.SourceID, nearbySighting.EntityID, x, y, z,
+                    Math.Max(0.8f, nearbySighting.Confidence));
+            }
+            return recorded;
         }
 
         public bool RecordBusinessOwnership(DateTime observedAt, string businessName, float x, float y, float z, bool acquired)
