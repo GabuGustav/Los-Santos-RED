@@ -48,7 +48,9 @@ public class AIApprehend : ComplexTask
         FootChase,
         Nothing,
         StopCar,
-        PullOver
+        PullOver,
+        TrafficStopApproachVehicle,
+        TrafficStopApproachDriver
     }
     private enum eVehicleMissionType
     {
@@ -146,10 +148,10 @@ public class AIApprehend : ComplexTask
                 }
                 if (Ped.IsInVehicle) return Task.PullOver;
                 if (OtherTarget.IsMovingFast) return ShouldGetBackInCar ? Task.EnterVehicle : Task.Nothing;
-                return Task.CarJack;
+                return Task.TrafficStopApproachVehicle;
             }
             if (Ped.IsInVehicle) return Task.ExitVehicle;
-            return Task.FootChase;
+            return Task.TrafficStopApproachDriver;
         }
         if (CurrentAIDynamic == AIDynamic.Cop_InVehicle_Player_InVehicle)
         {
@@ -404,6 +406,18 @@ public class AIApprehend : ComplexTask
             SubTaskName = "PullOver";
             PullOver();
         }
+        else if (CurrentTask == Task.TrafficStopApproachVehicle)
+        {
+            RunInterval = 500;
+            SubTaskName = "TrafficStopApproachVehicle";
+            ApproachTrafficStopTarget(true);
+        }
+        else if (CurrentTask == Task.TrafficStopApproachDriver)
+        {
+            RunInterval = 500;
+            SubTaskName = "TrafficStopApproachDriver";
+            ApproachTrafficStopTarget(false);
+        }
         GameTimeLastRan = Game.GameTime;
     }
     private void GoToPlayersCar()
@@ -448,13 +462,47 @@ public class AIApprehend : ComplexTask
                 NativeFunction.CallByName<bool>("OPEN_SEQUENCE_TASK", &lol);
                 NativeFunction.CallByName<uint>("TASK_VEHICLE_TEMP_ACTION", 0, Ped.Pedestrian.CurrentVehicle, 27, 1000);
                 NativeFunction.CallByName<bool>("TASK_LEAVE_VEHICLE", 0, Ped.Pedestrian.CurrentVehicle, 256);
-                NativeFunction.CallByName<bool>("TASK_GO_TO_ENTITY", 0, OtherTarget.Pedestrian, -1, 7f, 500f, 1073741824, 1);
+                if (IsTrafficStop && Player.IsInVehicle && Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists())
+                {
+                    NativeFunction.CallByName<bool>("TASK_GO_TO_ENTITY", 0, Player.CurrentVehicle.Vehicle, -1, 2.0f, 1.0f, 1073741824, 1);
+                }
+                else
+                {
+                    NativeFunction.CallByName<bool>("TASK_GO_TO_ENTITY", 0, OtherTarget.Pedestrian, -1, 7f, 500f, 1073741824, 1);
+                }
                 NativeFunction.CallByName<bool>("SET_SEQUENCE_TO_REPEAT", lol, false);
                 NativeFunction.CallByName<bool>("CLOSE_SEQUENCE_TASK", lol);
                 NativeFunction.CallByName<bool>("TASK_PERFORM_SEQUENCE", Ped.Pedestrian, lol);
                 NativeFunction.CallByName<bool>("CLEAR_SEQUENCE_TASK", &lol);
             }
         }
+    }
+
+    // A routine traffic stop is a contact task, not an arrest or foot-chase task.
+    // Keep the officer at the vehicle/driver and do not invoke combat or melee behavior.
+    private void ApproachTrafficStopTarget(bool vehicle)
+    {
+        NeedsUpdates = true;
+        if (!Ped.Pedestrian.Exists() || OtherTarget == null || !OtherTarget.Pedestrian.Exists()) return;
+
+        Entity target = vehicle && Player != null && Player.IsInVehicle && Player.CurrentVehicle != null &&
+            Player.CurrentVehicle.Vehicle.Exists()
+            ? (Entity)Player.CurrentVehicle.Vehicle
+            : OtherTarget.Pedestrian;
+        float distance = Ped.Pedestrian.DistanceTo2D(target);
+        if (distance > 2.5f)
+        {
+            if (CurrentSubTask != SubTask.Goto)
+            {
+                CurrentSubTask = SubTask.Goto;
+                NativeFunction.Natives.TASK_GO_TO_ENTITY(Ped.Pedestrian, target, -1, 2.0f, 1.0f, 0f, 0);
+            }
+            return;
+        }
+
+        CurrentSubTask = SubTask.Look;
+        NativeFunction.Natives.TASK_STAND_STILL(Ped.Pedestrian, -1);
+        NativeFunction.Natives.TASK_LOOK_AT_ENTITY(Ped.Pedestrian, target, -1, 2048, 3);
     }
     private void FootChase()
     {
