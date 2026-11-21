@@ -1,4 +1,5 @@
-﻿using LosSantosRED.lsr.Interface;
+﻿using LosSantosRED.lsr;
+using LosSantosRED.lsr.Interface;
 using LSR.Vehicles;
 using Rage;
 using System;
@@ -79,9 +80,13 @@ public class VehicleOwnership
             return;
         }
         //EntryPoint.WriteToConsole($"PLAYER EVENT: OWNED VEHICLE REMOVED {toOwn.Vehicle.Handle}");
-        if (OwnedVehicles.Any(x => x.Handle == toOwn.Handle))
+        bool wasOwnedByPlayer = OwnedVehicles.Any(x => x != null && x.Handle == toOwn.Handle);
+        if (wasOwnedByPlayer)
         {
-            OwnedVehicles.Remove(toOwn);
+            OwnedVehicles.RemoveAll(x => x != null && x.Handle == toOwn.Handle);
+            RecordOwnershipAssociation(toOwn, VehicleAssociationType.FormerRegisteredOwner,
+                "PLAYER_VEHICLE_OWNERSHIP_REMOVED",
+                "Player ownership of this vehicle was removed; this activity record is not automatically known to police.");
         }
         toOwn.RemoveOwnership();
         toOwn.RemoveBlip();
@@ -120,6 +125,9 @@ public class VehicleOwnership
         toOwn.AddOwnership();
         Player.VehicleManager.OnTookOwnership(toOwn);
         OwnedVehicles.Add(toOwn);
+        RecordOwnershipAssociation(toOwn, VehicleAssociationType.RegisteredOwner,
+            "PLAYER_VEHICLE_OWNERSHIP",
+            "Player explicitly added this vehicle to their owned vehicles; this activity record is not automatically known to police.");
         UpdateOwnedBlips();
         if (showNotification)
         {
@@ -127,6 +135,28 @@ public class VehicleOwnership
         }
         EntryPoint.WriteToConsole($"PLAYER EVENT: OWNED VEHICLE ADDED {toOwn.Vehicle.Handle}");    
     }
+    private void RecordOwnershipAssociation(VehicleExt vehicle, VehicleAssociationType associationType,
+        string sourceID, string notes)
+    {
+        Mod.Player modPlayer = Player as Mod.Player;
+        if (modPlayer?.LawEnforcementIntelligence == null || vehicle == null ||
+            vehicle.Vehicle == null || !vehicle.Vehicle.Exists())
+        {
+            return;
+        }
+
+        string registrationID = vehicle.CarPlate?.RegistrationId;
+        string plate = vehicle.CarPlate?.PlateNumber ?? vehicle.Vehicle.LicensePlate;
+        string vehicleID = LawEnforcementIntelligence.GetVehicleIdentity(registrationID, plate);
+        if (string.IsNullOrWhiteSpace(vehicleID))
+        {
+            return;
+        }
+
+        modPlayer.LawEnforcementIntelligence.RecordVehicleAssociation(
+            modPlayer.CurrentDateTime, vehicleID, associationType, sourceID, 1f, false, notes);
+    }
+
     private void UpdateOwnedBlips()
     {
         foreach (VehicleExt car in OwnedVehicles)
