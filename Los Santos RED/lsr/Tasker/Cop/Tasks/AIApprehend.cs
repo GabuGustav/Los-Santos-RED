@@ -1,4 +1,5 @@
-﻿using LosSantosRED.lsr.Interface;
+﻿using LosSantosRED.lsr;
+using LosSantosRED.lsr.Interface;
 using Rage;
 using Rage.Native;
 using System;
@@ -527,22 +528,32 @@ public class AIApprehend : ComplexTask
             }
         }
 
-        if (CurrentTrafficStopStage == TrafficStopStage.AwaitingCompliance)
+        if (CurrentTrafficStopStage == TrafficStopStage.AwaitingCompliance ||
+            CurrentTrafficStopStage == TrafficStopStage.Refused)
         {
             Entity contactTarget = Player.IsInVehicle && Player.CurrentVehicle != null &&
                 Player.CurrentVehicle.Vehicle.Exists()
                 ? (Entity)Player.CurrentVehicle.Vehicle : OtherTarget.Pedestrian;
             if (Ped.Pedestrian.DistanceTo2D(contactTarget) <= 5.0f)
             {
-                modPlayer.ButtonPrompts.AttemptAddPrompt("TrafficStop", "Present documents / cooperate",
+                string complyPrompt = CurrentTrafficStopStage == TrafficStopStage.Refused
+                    ? "Comply with officer" : "Present documents / cooperate";
+                modPlayer.ButtonPrompts.AttemptAddPrompt("TrafficStop", complyPrompt,
                     "TrafficStopComply", Settings.SettingsManager.KeySettings.InteractPositiveOrYes, 1,
                     () => RespondToTrafficStop(true));
-                modPlayer.ButtonPrompts.AttemptAddPrompt("TrafficStop", "Refuse / flee",
+                modPlayer.ButtonPrompts.AttemptAddPrompt("TrafficStop",
+                    CurrentTrafficStopStage == TrafficStopStage.Refused ? "Drive away / flee" : "Refuse",
                     "TrafficStopRefuse", Settings.SettingsManager.KeySettings.InteractNegativeOrNo, 2,
                     () => RespondToTrafficStop(false));
             }
             else
                 modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
+
+            if (CurrentTrafficStopStage == TrafficStopStage.Refused &&
+                ((Player.IsInVehicle && Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
+                  Player.CurrentVehicle.Vehicle.Speed >= 3.0f) ||
+                 (!Player.IsInVehicle && Player.Position.DistanceTo2D(OtherTarget.Pedestrian.Position) >= 7.0f)))
+                BeginTrafficStopEvasion(modPlayer);
         }
         else
             modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
@@ -576,18 +587,31 @@ public class AIApprehend : ComplexTask
         modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
         if (!comply)
         {
-            Game.DisplaySubtitle("The officer orders you to remain at the scene and comply with the traffic stop.");
-            IsTrafficStop = false;
-            IsANPREvasionPursuit = true;
-            CurrentSubTask = SubTask.None;
-            CurrentTask = Task.Nothing;
-            GameTimeLastRan = 0;
+            if (CurrentTrafficStopStage == TrafficStopStage.AwaitingCompliance)
+            {
+                CurrentTrafficStopStage = TrafficStopStage.Refused;
+                GameTimeTrafficStopStageStarted = Game.GameTime;
+                Game.DisplaySubtitle("The officer warns you to remain at the scene. Cooperate or leave and risk pursuit.");
+                return;
+            }
+            BeginTrafficStopEvasion(modPlayer);
             return;
         }
 
         CurrentTrafficStopStage = TrafficStopStage.Checking;
         GameTimeTrafficStopStageStarted = Game.GameTime;
         Game.DisplaySubtitle("The officer checks your identification, driver's license, vehicle registration and police records.");
+    }
+
+    private void BeginTrafficStopEvasion(Mod.Player modPlayer)
+    {
+        modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
+        Game.DisplaySubtitle("The driver is fleeing the traffic stop. The officer is attempting to re-engage.");
+        IsTrafficStop = false;
+        IsANPREvasionPursuit = true;
+        CurrentSubTask = SubTask.None;
+        CurrentTask = Task.Nothing;
+        GameTimeLastRan = 0;
     }
 
     private void ResolveTrafficStopChecks(Mod.Player modPlayer)
