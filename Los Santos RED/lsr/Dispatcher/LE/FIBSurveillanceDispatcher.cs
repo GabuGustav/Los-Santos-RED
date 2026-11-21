@@ -234,7 +234,7 @@ public class FIBSurveillanceDispatcher
             spawnTask.AttemptSpawn();
 
             VehicleExt spawnedVehicle = spawnTask.CreatedVehicles.FirstOrDefault(x =>
-                x != null && x.Vehicle.Exists());
+                x != null && x.Vehicle != null && x.Vehicle.Exists());
             PedExt spawnedDriver = spawnTask.CreatedPeople.FirstOrDefault(x =>
                 x != null && x.Pedestrian != null && x.Pedestrian.Exists());
             if (spawnedVehicle == null || spawnedDriver == null)
@@ -450,7 +450,7 @@ public class FIBSurveillanceDispatcher
         SurveillanceAssignment assignment, DateTime now, RuntimeTeam team)
     {
         bool inVehicle = Player.IsInVehicle && Player.CurrentVehicle != null &&
-            Player.CurrentVehicle.Vehicle.Exists();
+            Player.CurrentVehicle.Vehicle != null && Player.CurrentVehicle.Vehicle.Exists();
         string vehicleID = null;
         string vehicleDescription = null;
         if (inVehicle)
