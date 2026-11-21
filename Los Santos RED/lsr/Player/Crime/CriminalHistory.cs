@@ -17,6 +17,7 @@ namespace LosSantosRED.lsr
     {
         private BOLO CurrentHistory;
         private string LawEnforcementBOLOID;
+        private const string LawEnforcementPersonBOLONotesPrefix = "Person BOLO issued after an identified suspect eluded police.";
         private IPoliceRespondable Player;
         private ISettingsProvideable Settings;
         private ITimeReportable Time;
@@ -183,26 +184,40 @@ namespace LosSantosRED.lsr
 
         private void ClearLawEnforcementBOLO()
         {
-            Mod.Player modPlayer = Player as Mod.Player;
-            if (modPlayer != null && !string.IsNullOrWhiteSpace(LawEnforcementBOLOID))
-            {
-                modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.Cancel(
-                    modPlayer.LawEnforcementIntelligence,
-                    LawEnforcementBOLOID,
-                    Time?.CurrentDateTime ?? DateTime.MinValue);
-            }
-            LawEnforcementBOLOID = null;
+            SetLawEnforcementPersonBOLOStatus(BOLOStatus.Cancelled);
         }
 
         public void ResolveLawEnforcementBOLO()
         {
+            SetLawEnforcementPersonBOLOStatus(BOLOStatus.Resolved);
+        }
+
+        private void SetLawEnforcementPersonBOLOStatus(BOLOStatus status)
+        {
             Mod.Player modPlayer = Player as Mod.Player;
-            if (modPlayer != null && !string.IsNullOrWhiteSpace(LawEnforcementBOLOID))
+            LawEnforcementIntelligence intelligence = modPlayer?.LawEnforcementIntelligence;
+            BOLOManager manager = modPlayer?.LawEnforcementIntelligenceManager?.BOLOManager;
+            DateTime at = Time?.CurrentDateTime ?? DateTime.MinValue;
+            if (intelligence?.BOLOs != null && manager != null && at != DateTime.MinValue)
             {
-                modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.Resolve(
-                    modPlayer.LawEnforcementIntelligence,
-                    LawEnforcementBOLOID,
-                    Time?.CurrentDateTime ?? DateTime.MinValue);
+                foreach (BOLORecord bolo in intelligence.BOLOs.Where(x => x != null &&
+                    x.Status == BOLOStatus.Active && x.TargetType == BOLOTargetType.Person &&
+                    string.Equals(x.SubjectID, intelligence.SubjectID, StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(x.Notes) &&
+                    x.Notes.StartsWith(LawEnforcementPersonBOLONotesPrefix, StringComparison.OrdinalIgnoreCase)).ToList())
+                {
+                    if (status == BOLOStatus.Resolved)
+                        manager.Resolve(intelligence, bolo.ID, at);
+                    else
+                        manager.Cancel(intelligence, bolo.ID, at);
+                }
+            }
+            else if (modPlayer != null && !string.IsNullOrWhiteSpace(LawEnforcementBOLOID))
+            {
+                if (status == BOLOStatus.Resolved)
+                    manager?.Resolve(intelligence, LawEnforcementBOLOID, at);
+                else
+                    manager?.Cancel(intelligence, LawEnforcementBOLOID, at);
             }
             LawEnforcementBOLOID = null;
         }
