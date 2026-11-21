@@ -1198,6 +1198,7 @@ namespace LosSantosRED.lsr
         public float StopChanceInZone { get; set; }
         public float StopChanceOutsideZone { get; set; }
         public string Notes { get; set; }
+        public string LinkedWarrantID { get; set; }
 
         public BOLORecord Copy()
         {
@@ -1208,6 +1209,7 @@ namespace LosSantosRED.lsr
                 TargetType = TargetType,
                 Status = Status,
                 Description = Description,
+                LinkedWarrantID = LinkedWarrantID,
                 VehicleModel = VehicleModel,
                 PlateNumber = PlateNumber,
                 ZoneID = ZoneID,
