@@ -237,12 +237,13 @@ namespace Mod
                 .Select(x => string.Format(System.Globalization.CultureInfo.InvariantCulture,
                     "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", x.Name, x.EntrancePosition.X, x.EntrancePosition.Y, x.EntrancePosition.Z))
                 .ToList();
+            IntelligenceObservation residenceEvidence = null;
             if (CurrentDateTime != DateTime.MinValue && LawEnforcementIntelligence.Observations != null)
             {
                 DateTime residenceEvidenceCutoff = CurrentDateTime.AddDays(-30);
                 string residenceTargetID = string.IsNullOrWhiteSpace(suspectedResidenceID)
                     ? null : "RESIDENCE:" + suspectedResidenceID;
-                IntelligenceObservation residenceEvidence = LawEnforcementIntelligence.Observations
+                residenceEvidence = LawEnforcementIntelligence.Observations
                     .Where(x => x != null && x.IsKnownToPolice && x.IsVerified &&
                         x.TargetType == IntelligenceTargetType.Location &&
                         (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
@@ -262,9 +263,19 @@ namespace Mod
                         residenceConfidence = inferredResidenceConfidence;
                 }
             }
-            return LawEnforcementIntelligenceManager?.WarrantManager?.Issue(LawEnforcementIntelligence,
-                CurrentDateTime, type, priority, issuingAgencyID, jurisdictionID, linkedCrimeIDs,
-                ownedBusinessIDs, suspectedResidenceID, residenceConfidence, expiresAt);
+            WarrantRecord issuedWarrant = LawEnforcementIntelligenceManager?.WarrantManager?.Issue(
+                LawEnforcementIntelligence, CurrentDateTime, type, priority, issuingAgencyID,
+                jurisdictionID, linkedCrimeIDs, ownedBusinessIDs, suspectedResidenceID,
+                residenceConfidence, expiresAt);
+            if (issuedWarrant != null && residenceEvidence != null)
+            {
+                if (issuedWarrant.EvidenceObservationIDs == null)
+                    issuedWarrant.EvidenceObservationIDs = new List<string>();
+                if (!string.IsNullOrWhiteSpace(residenceEvidence.ID) &&
+                    !issuedWarrant.EvidenceObservationIDs.Contains(residenceEvidence.ID))
+                    issuedWarrant.EvidenceObservationIDs.Add(residenceEvidence.ID);
+            }
+            return issuedWarrant;
         }
         public BOLORecord IssueLawEnforcementBOLO(BOLOTargetType targetType, string description,
             string vehicleModel, string plateNumber, string zoneID, string lastKnownLocationID,
