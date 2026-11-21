@@ -26,7 +26,7 @@ namespace LosSantosRED.lsr
                 x != null && x.Status == InvestigationAccessRequestStatus.Pending &&
                 string.Equals(x.InvestigationID, investigationID, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(x.RequestingAgencyID, requestingAgencyID, StringComparison.OrdinalIgnoreCase));
-            if (pending != null) return pending;
+            if (pending != null) return pending.Copy();
             InvestigationAccessRequest request = new InvestigationAccessRequest
             {
                 ID = Guid.NewGuid().ToString("N"), InvestigationID = investigationID,
@@ -38,7 +38,7 @@ namespace LosSantosRED.lsr
             AddAudit(intelligence, investigationID, request.ID, requestingAgencyID,
                 "AccessRequested", requestedScope, requestedAt, purpose.Trim());
             intelligence.LastUpdatedAt = requestedAt;
-            return request;
+            return request.Copy();
         }
 
         public bool DecideRequest(LawEnforcementIntelligence intelligence, string requestID,
@@ -57,7 +57,8 @@ namespace LosSantosRED.lsr
                 !string.Equals(request.OwningAgencyID, decidingAgencyID, StringComparison.OrdinalIgnoreCase))
                 return false;
             InvestigationRecord investigation = FindInvestigation(intelligence, request.InvestigationID);
-            if (investigation == null || investigation.Stage == InvestigationStage.Closed) return false;
+            if (investigation == null || investigation.Stage == InvestigationStage.Closed ||
+                investigation.Stage == InvestigationStage.Suspended) return false;
             if (approve && (int)approvedScope < (int)request.RequestedScope)
                 return false;
 
@@ -86,6 +87,28 @@ namespace LosSantosRED.lsr
             AddAudit(intelligence, request.InvestigationID, request.ID, decidingAgencyID,
                 "AccessApproved", approvedScope, decidedAt, decisionNotes);
             intelligence.LastUpdatedAt = decidedAt;
+            return true;
+        }
+
+        public bool CancelRequest(LawEnforcementIntelligence intelligence, string requestID,
+            string requestingAgencyID, DateTime cancelledAt, string reason = null)
+        {
+            if (intelligence == null || string.IsNullOrWhiteSpace(requestID) ||
+                string.IsNullOrWhiteSpace(requestingAgencyID) || cancelledAt == DateTime.MinValue)
+                return false;
+            intelligence.Normalize();
+            InvestigationAccessRequest request = intelligence.AccessRequests.FirstOrDefault(x =>
+                x != null && string.Equals(x.ID, requestID, StringComparison.OrdinalIgnoreCase));
+            if (request == null || request.Status != InvestigationAccessRequestStatus.Pending ||
+                cancelledAt < request.RequestedAt ||
+                !string.Equals(request.RequestingAgencyID, requestingAgencyID, StringComparison.OrdinalIgnoreCase))
+                return false;
+            request.Status = InvestigationAccessRequestStatus.Cancelled;
+            request.DecidedAt = cancelledAt;
+            request.DecisionNotes = reason;
+            AddAudit(intelligence, request.InvestigationID, request.ID, requestingAgencyID,
+                "AccessRequestCancelled", request.RequestedScope, cancelledAt, reason);
+            intelligence.LastUpdatedAt = cancelledAt;
             return true;
         }
 
