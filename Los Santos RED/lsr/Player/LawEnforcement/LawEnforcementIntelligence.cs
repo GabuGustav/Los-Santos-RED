@@ -841,9 +841,20 @@ namespace LosSantosRED.lsr
         {
             if (currentTime == DateTime.MinValue) return null;
             Normalize();
+            // When a case is generated from an active warrant, the earliest issuing agency
+            // becomes its initial owner unless an explicit case assignment was supplied.
+            string effectiveAssignedAgencyID = assignedAgencyID;
+            if (string.IsNullOrWhiteSpace(effectiveAssignedAgencyID))
+                effectiveAssignedAgencyID = Warrants.Where(warrant => warrant != null &&
+                    warrant.Status == WarrantStatus.Active && !string.IsNullOrWhiteSpace(warrant.IssuingAgencyID))
+                    .OrderBy(warrant => warrant.IssuedAt)
+                    .Select(warrant => warrant.IssuingAgencyID).FirstOrDefault();
             InvestigationRecord investigation = Investigations.FirstOrDefault(x => x != null && x.SubjectID == SubjectID &&
                 x.Stage != InvestigationStage.Closed && x.Stage != InvestigationStage.Suspended);
             bool createdNewInvestigation = investigation == null;
+            if (investigation != null && string.IsNullOrWhiteSpace(investigation.AssignedAgencyID) &&
+                !string.IsNullOrWhiteSpace(effectiveAssignedAgencyID))
+                investigation.AssignedAgencyID = effectiveAssignedAgencyID;
             DateTime previousCaseCutoff = DateTime.MinValue;
             if (createdNewInvestigation)
             {
@@ -857,7 +868,7 @@ namespace LosSantosRED.lsr
                 investigation = new InvestigationRecord
                 {
                     ID = Guid.NewGuid().ToString("N"), SubjectID = SubjectID, Stage = InvestigationStage.Preliminary,
-                    CreatedAt = currentTime, LastActivityAt = currentTime, AssignedAgencyID = assignedAgencyID
+                    CreatedAt = currentTime, LastActivityAt = currentTime, AssignedAgencyID = effectiveAssignedAgencyID
                 };
                 Investigations.Add(investigation);
             }
