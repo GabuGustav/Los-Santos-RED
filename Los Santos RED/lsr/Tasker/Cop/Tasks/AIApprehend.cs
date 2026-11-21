@@ -930,7 +930,8 @@ public class AIApprehend : ComplexTask
     {
         IsCancelled = true;
         Mod.Player modPlayer = Player as Mod.Player;
-        if (IsWarrantApprehension && OtherTarget != null && !OtherTarget.IsBusted)
+        if (IsWarrantApprehension && OtherTarget != null && !OtherTarget.IsBusted &&
+            modPlayer?.BeingArrested != true)
             modPlayer?.CancelWarrantApprehension(WarrantID, WarrantOfficerID);
         modPlayer?.ButtonPrompts?.RemovePrompts("TrafficStop");
     }
