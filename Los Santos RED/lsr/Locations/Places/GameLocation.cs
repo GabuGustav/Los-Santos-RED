@@ -582,19 +582,33 @@ public class GameLocation : ILocationDispatchable
         }
         else
         {
-            RecordSuccessfulBusinessVisit();
+            RecordSuccessfulLocationVisit();
             StandardInteract(null, false);
         }
     }
 
     public void RecordSuccessfulBusinessVisit()
     {
-        if (!(this is Business)) return;
+        RecordSuccessfulLocationVisit();
+    }
+
+    public void RecordSuccessfulLocationVisit()
+    {
         Mod.Player modPlayer = Player as Mod.Player;
         if (modPlayer?.LawEnforcementIntelligence == null) return;
-        modPlayer.LawEnforcementIntelligence.RecordBusinessVisit(
-            modPlayer.CurrentDateTime, Name,
-            EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z);
+
+        if (this is Business)
+        {
+            modPlayer.LawEnforcementIntelligence.RecordBusinessVisit(
+                modPlayer.CurrentDateTime, Name,
+                EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z);
+        }
+        else if (this is Residence residence && residence.IsOwnedOrRented)
+        {
+            modPlayer.LawEnforcementIntelligence.RecordResidenceVisit(
+                modPlayer.CurrentDateTime, Name,
+                EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z);
+        }
     }
     public virtual void StandardInteract(LocationCamera locationCamera, bool isInside)
     {
