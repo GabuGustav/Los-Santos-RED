@@ -106,27 +106,32 @@ public class ResidenceOperationsDispatcher
                 x.Stage != PoliceOperationStage.Completed && x.Stage != PoliceOperationStage.Aborted))
             return;
 
-        Residence currentResidence = Player.IsDead ? null : GetCurrentResidence();
-        if (currentResidence != null && currentResidence.ResidenceID >= 0 &&
-            currentResidence.IsOwnedOrRented)
+        if (!Player.IsDead)
         {
-            string currentResidenceID = currentResidence.ResidenceID.ToString();
             foreach (WarrantRecord arrestWarrant in intelligence.Warrants
-                .Where(x => x != null && x.Status == WarrantStatus.Active && IsArrestWarrant(x.Type) &&
-                    string.Equals(x.SuspectedResidenceID, currentResidenceID, StringComparison.OrdinalIgnoreCase) &&
+                .Where(x => x != null && x.Status == WarrantStatus.Active &&
+                    IsArrestWarrant(x.Type) &&
+                    !string.IsNullOrWhiteSpace(x.SuspectedResidenceID) &&
                     x.ResidenceConfidence * 100f >= settings.RaidMinimumConfidence &&
                     x.Priority >= WarrantPriority.High)
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt))
             {
+                Residence raidResidence = FindResidence(arrestWarrant.SuspectedResidenceID);
+                if (raidResidence == null || !raidResidence.IsOwnedOrRented ||
+                    !IsPlayerBelievedHome(intelligence, raidResidence, now))
+                    continue;
+
+                string raidResidenceID = raidResidence.ResidenceID.ToString();
                 string investigationID = FindInvestigationID(intelligence, arrestWarrant.ID);
                 PoliceOperationRecord raid = operationsManager.PlanResidenceOperation(
-                    intelligence, arrestWarrant.ID, investigationID, currentResidenceID,
+                    intelligence, arrestWarrant.ID, investigationID, raidResidenceID,
                     true, 2, now, settings);
                 if (raid == null)
                     continue;
+
                 RuntimeOperations[raid.ID] = new RuntimeOperation
                 {
-                    Residence = currentResidence,
+                    Residence = raidResidence,
                     StageStartedAt = Game.GameTime
                 };
                 return;
@@ -228,7 +233,7 @@ public class ResidenceOperationsDispatcher
                 runtime.AnnouncementShown = true;
                 runtime.StageStartedAt = Game.GameTime;
             }
-            if (Player.IsDead || !IsPlayerAtResidence(runtime.Residence))
+            if (Player.IsDead || !IsPlayerAtResidenceOrEntrance(runtime.Residence))
             {
                 manager.RecordAnnouncementResponse(intelligence, operation.ID,
                     PoliceOperationPlayerResponse.Absent, now);
@@ -606,6 +611,43 @@ public class ResidenceOperationsDispatcher
     {
         Residence current = GetCurrentResidence();
         return current != null && residence != null && current.ResidenceID == residence.ResidenceID;
+    }
+
+    private bool IsPlayerAtResidenceOrEntrance(Residence residence)
+    {
+        if (IsPlayerAtResidence(residence))
+            return true;
+        if (Player.IsDead || Player.Character == null || !Player.Character.Exists() ||
+            residence == null || residence.EntrancePosition == Vector3.Zero)
+            return false;
+
+        if (Player.Character.Position.DistanceTo2D(residence.EntrancePosition) > 20f)
+            return false;
+        if (Player.IsInVehicle && Player.CurrentVehicle != null &&
+            Player.CurrentVehicle.Vehicle.Exists() && Player.CurrentVehicle.Vehicle.Speed > 0.5f)
+            return false;
+        return true;
+    }
+
+    private bool IsPlayerBelievedHome(LawEnforcementIntelligence intelligence, Residence residence, DateTime now)
+    {
+        if (IsPlayerAtResidenceOrEntrance(residence))
+            return true;
+        if (intelligence?.SurveillanceAssignments == null || residence == null ||
+            residence.EntrancePosition == Vector3.Zero || now == DateTime.MinValue)
+            return false;
+
+        return intelligence.SurveillanceAssignments.Any(x => x != null &&
+            x.TargetSubjectID == intelligence.SubjectID && x.HasLastKnownPosition &&
+            x.LastSuccessfulObservationAt != DateTime.MinValue &&
+            x.LastSuccessfulObservationAt <= now &&
+            now - x.LastSuccessfulObservationAt <= TimeSpan.FromMinutes(2) &&
+            (x.State == SurveillanceAssignmentState.Following ||
+             x.State == SurveillanceAssignmentState.StationaryWatch ||
+             x.State == SurveillanceAssignmentState.LostContact ||
+             x.State == SurveillanceAssignmentState.Reporting) &&
+            new Vector3(x.LastKnownX, x.LastKnownY, x.LastKnownZ)
+                .DistanceTo2D(residence.EntrancePosition) <= 60f);
     }
 
     private Residence FindResidence(string residenceID)
