@@ -323,7 +323,7 @@ namespace LosSantosRED.lsr
             });
             if (inVehicle && !string.IsNullOrWhiteSpace(vehicleID))
             {
-                RecordOrRefreshSurveillanceObservation(new IntelligenceObservation
+                RecordOrRefreshObservation(new IntelligenceObservation
                 {
                     ObservedAt = observedAt,
                     Source = IntelligenceSource.Surveillance,
