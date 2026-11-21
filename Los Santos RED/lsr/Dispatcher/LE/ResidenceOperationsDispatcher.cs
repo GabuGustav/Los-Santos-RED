@@ -111,26 +111,25 @@ public class ResidenceOperationsDispatcher
             currentResidence.IsOwnedOrRented)
         {
             string currentResidenceID = currentResidence.ResidenceID.ToString();
-            WarrantRecord arrestWarrant = intelligence.Warrants.FirstOrDefault(x => x != null &&
-                x.Status == WarrantStatus.Active && IsArrestWarrant(x.Type) &&
-                string.Equals(x.SuspectedResidenceID, currentResidenceID, StringComparison.OrdinalIgnoreCase) &&
-                x.ResidenceConfidence * 100f >= settings.RaidMinimumConfidence &&
-                x.Priority >= WarrantPriority.High);
-            if (arrestWarrant != null)
+            foreach (WarrantRecord arrestWarrant in intelligence.Warrants
+                .Where(x => x != null && x.Status == WarrantStatus.Active && IsArrestWarrant(x.Type) &&
+                    string.Equals(x.SuspectedResidenceID, currentResidenceID, StringComparison.OrdinalIgnoreCase) &&
+                    x.ResidenceConfidence * 100f >= settings.RaidMinimumConfidence &&
+                    x.Priority >= WarrantPriority.High)
+                .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt))
             {
                 string investigationID = FindInvestigationID(intelligence, arrestWarrant.ID);
                 PoliceOperationRecord raid = operationsManager.PlanResidenceOperation(
                     intelligence, arrestWarrant.ID, investigationID, currentResidenceID,
                     true, 2, now, settings);
-                if (raid != null)
+                if (raid == null)
+                    continue;
+                RuntimeOperations[raid.ID] = new RuntimeOperation
                 {
-                    RuntimeOperations[raid.ID] = new RuntimeOperation
-                    {
-                        Residence = currentResidence,
-                        StageStartedAt = Game.GameTime
-                    };
-                    return;
-                }
+                    Residence = currentResidence,
+                    StageStartedAt = Game.GameTime
+                };
+                return;
             }
         }
 
