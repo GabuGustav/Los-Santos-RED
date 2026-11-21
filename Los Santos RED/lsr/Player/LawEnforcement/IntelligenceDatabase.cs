@@ -44,6 +44,42 @@ namespace LosSantosRED.lsr
                 .OrderByDescending(x => x.ObservedAt).ToList();
         }
 
+
+        // Operational investigation reads must use an explicit agency grant. The legacy
+        // unscoped query methods above remain for internal administration and diagnostics.
+        public InvestigationRecord GetInvestigationSummaryForAgency(LawEnforcementIntelligence intelligence,
+            string investigationID, string agencyID, DateTime at, AgencyIntelligenceAccessManager accessManager)
+        {
+            if (accessManager == null) return null;
+            return accessManager.GetInvestigation(intelligence, investigationID, agencyID,
+                InvestigationAccessScope.Summary, at);
+        }
+
+        public IEnumerable<IntelligenceObservation> GetInvestigationEvidenceForAgency(
+            LawEnforcementIntelligence intelligence, string investigationID, string agencyID,
+            DateTime at, AgencyIntelligenceAccessManager accessManager)
+        {
+            if (intelligence == null || accessManager == null || at == DateTime.MinValue ||
+                string.IsNullOrWhiteSpace(investigationID) || string.IsNullOrWhiteSpace(agencyID) ||
+                intelligence.Observations == null)
+                return Enumerable.Empty<IntelligenceObservation>();
+
+            InvestigationRecord investigation = accessManager.GetInvestigation(intelligence,
+                investigationID, agencyID, InvestigationAccessScope.Evidence, at);
+            if (investigation == null || investigation.ObservationIDs == null ||
+                investigation.ObservationIDs.Count == 0)
+                return Enumerable.Empty<IntelligenceObservation>();
+
+            HashSet<string> authorisedObservationIDs = new HashSet<string>(
+                investigation.ObservationIDs.Where(id => !string.IsNullOrWhiteSpace(id)),
+                StringComparer.OrdinalIgnoreCase);
+            return intelligence.Observations.Where(observation => observation != null &&
+                    observation.IsKnownToPolice && observation.ObservedAt <= at &&
+                    authorisedObservationIDs.Contains(observation.ID))
+                .OrderByDescending(observation => observation.ObservedAt)
+                .Select(observation => observation.Copy()).ToList();
+        }
+
         public bool MarkKnownToPolice(LawEnforcementIntelligence intelligence, string observationID,
             IntelligenceSource source, string sourceID, float confidence, DateTime recordedAt, string notes = null)
         {
