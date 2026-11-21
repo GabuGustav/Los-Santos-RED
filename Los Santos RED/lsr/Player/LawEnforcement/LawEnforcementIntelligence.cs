@@ -110,12 +110,59 @@ namespace LosSantosRED.lsr
             return recorded;
         }
 
+        private bool RecordOrRefreshSurveillanceObservation(IntelligenceObservation observation)
+        {
+            if (observation == null || observation.ObservedAt == DateTime.MinValue)
+                return false;
+            if (Observations == null)
+                Observations = new List<IntelligenceObservation>();
+            IntelligenceObservation previous = Observations
+                .Where(x => x != null && x.Source == IntelligenceSource.Surveillance &&
+                    x.SourceID == observation.SourceID && x.EvidenceType == observation.EvidenceType &&
+                    x.TargetType == observation.TargetType && x.TargetID == observation.TargetID &&
+                    x.Notes == observation.Notes)
+                .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
+            if (previous != null)
+            {
+                if (observation.ObservedAt < previous.ObservedAt)
+                    return false;
+                if (observation.ObservedAt - previous.ObservedAt < TimeSpan.FromMinutes(30))
+                {
+                    previous.ObservedAt = observation.ObservedAt;
+                    previous.TargetDescription = observation.TargetDescription;
+                    previous.IsKnownToPolice = true;
+                    previous.IsVerified = true;
+                    previous.Confidence = NormalizeProbability(observation.Confidence);
+                    previous.PositionX = observation.PositionX;
+                    previous.PositionY = observation.PositionY;
+                    previous.PositionZ = observation.PositionZ;
+                    previous.LocationID = observation.LocationID;
+                    previous.LocationName = observation.LocationName;
+                    previous.Notes = observation.Notes;
+                    if (Warrants != null)
+                    {
+                        foreach (WarrantRecord warrant in Warrants.Where(x => x != null &&
+                            x.Status == WarrantStatus.Active && observation.ObservedAt >= x.IssuedAt))
+                        {
+                            if (warrant.EvidenceObservationIDs == null)
+                                warrant.EvidenceObservationIDs = new List<string>();
+                            if (!warrant.EvidenceObservationIDs.Contains(previous.ID))
+                                warrant.EvidenceObservationIDs.Add(previous.ID);
+                        }
+                    }
+                    LastUpdatedAt = observation.ObservedAt;
+                    return true;
+                }
+            }
+            return RecordObservation(observation);
+        }
+
         public bool RecordSurveillanceSighting(DateTime observedAt, string teamID, bool inVehicle,
             string vehicleID, string vehicleDescription, float x, float y, float z,
             string locationID = null, string locationName = null)
         {
             string sourceID = "FIB_SURVEILLANCE:" + (teamID ?? "UNKNOWN");
-            bool recorded = RecordObservation(new IntelligenceObservation
+            bool recorded = RecordOrRefreshSurveillanceObservation(new IntelligenceObservation
             {
                 ObservedAt = observedAt,
                 Source = IntelligenceSource.Surveillance,
@@ -136,7 +183,7 @@ namespace LosSantosRED.lsr
             });
             if (inVehicle && !string.IsNullOrWhiteSpace(vehicleID))
             {
-                RecordObservation(new IntelligenceObservation
+                RecordOrRefreshSurveillanceObservation(new IntelligenceObservation
                 {
                     ObservedAt = observedAt,
                     Source = IntelligenceSource.Surveillance,
@@ -190,6 +237,23 @@ namespace LosSantosRED.lsr
             bool isKnownToPolice, string notes)
         {
             if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(vehicleID)) return false;
+            if (sourceID != null && sourceID.StartsWith("FIB_SURVEILLANCE:", StringComparison.Ordinal) &&
+                VehicleAssociations != null)
+            {
+                VehicleAssociationRecord surveillancePrevious = VehicleAssociations.FirstOrDefault(x => x != null &&
+                    x.VehicleID == vehicleID && x.AssociationType == associationType &&
+                    x.SourceID == sourceID && x.ObservedAt <= observedAt &&
+                    observedAt - x.ObservedAt < TimeSpan.FromMinutes(30));
+                if (surveillancePrevious != null)
+                {
+                    surveillancePrevious.ObservedAt = observedAt;
+                    surveillancePrevious.Confidence = NormalizeProbability(confidence);
+                    surveillancePrevious.IsKnownToPolice = isKnownToPolice;
+                    surveillancePrevious.Notes = notes;
+                    LastUpdatedAt = observedAt;
+                    return true;
+                }
+            }
             Normalize();
             VehicleAssociationRecord previous = VehicleAssociations.FirstOrDefault(x => x != null &&
                 x.VehicleID == vehicleID && x.AssociationType == associationType &&
