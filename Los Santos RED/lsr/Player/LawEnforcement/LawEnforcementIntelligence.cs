@@ -571,11 +571,17 @@ namespace LosSantosRED.lsr
             });
         }
 
+        public static string GetBusinessIdentity(string businessName, float x, float y, float z)
+        {
+            if (string.IsNullOrWhiteSpace(businessName)) return null;
+            return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", businessName.Trim(), x, y, z);
+        }
+
         public bool RecordBusinessOwnership(DateTime observedAt, string businessName, float x, float y, float z, bool acquired)
         {
             if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(businessName)) return false;
-            string businessID = string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", businessName.Trim(), x, y, z);
+            string businessID = GetBusinessIdentity(businessName, x, y, z);
             return RecordObservation(new IntelligenceObservation
             {
                 ObservedAt = observedAt,
