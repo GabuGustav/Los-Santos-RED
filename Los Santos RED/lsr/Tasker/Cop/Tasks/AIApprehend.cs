@@ -500,9 +500,12 @@ public class AIApprehend : ComplexTask
             return;
         }
 
-        CurrentSubTask = SubTask.Look;
-        NativeFunction.Natives.TASK_STAND_STILL(Ped.Pedestrian, -1);
-        NativeFunction.Natives.TASK_LOOK_AT_ENTITY(Ped.Pedestrian, target, -1, 2048, 3);
+        if (CurrentSubTask != SubTask.Look)
+        {
+            CurrentSubTask = SubTask.Look;
+            NativeFunction.Natives.TASK_STAND_STILL(Ped.Pedestrian, -1);
+            NativeFunction.Natives.TASK_LOOK_AT_ENTITY(Ped.Pedestrian, target, -1, 2048, 3);
+        }
     }
     private void FootChase()
     {
