@@ -370,7 +370,23 @@ public class CopBrain : PedBrain
         bool isSuspicious = !string.IsNullOrEmpty(vehicle.IsSuspicious(false)) ||
             (Player.Violations != null && Player.Violations.TrafficViolations != null &&
              Player.Violations.TrafficViolations.IsViolatingAnyTrafficLaws);
-        bool recognizedFlaggedVehicle = MemoryRecognizedVehicle && vehicle.HasBeenSeenByPoliceDuringWanted;
+
+        Mod.Player modPlayer = Player as Mod.Player;
+        bool recognizedByActiveBOLO = false;
+        if (modPlayer?.LawEnforcementIntelligence != null &&
+            Settings.SettingsManager.LawEnforcementIntelligenceSettings.EnableBOLOSystem)
+        {
+            float boloChance = modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.GetVehicleStopChance(
+                modPlayer.LawEnforcementIntelligence, modPlayer.CurrentDateTime,
+                modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
+                vehicle.Vehicle.LicensePlate, vehicle.FullName(false)) ?? 0f;
+            recognizedByActiveBOLO = boloChance > 0f &&
+                RandomItems.RandomPercent(boloChance * 100f);
+        }
+
+        // A BOLO match is an intelligence hit, not proof of registered ownership or a plate offence.
+        bool recognizedFlaggedVehicle =
+            (MemoryRecognizedVehicle && vehicle.HasBeenSeenByPoliceDuringWanted) || recognizedByActiveBOLO;
 
         if (!isStationary && !isSuspicious && !recognizedFlaggedVehicle)
         {
