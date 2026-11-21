@@ -11,20 +11,6 @@ using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
 
-[XmlRoot("FIBSurveillanceVehicles")]
-public class FIBSurveillanceVehicleConfiguration
-{
-    [XmlArray("Vehicles")]
-    [XmlArrayItem("Vehicle")]
-    public List<FIBSurveillanceVehicleEntry> Vehicles { get; set; } = new List<FIBSurveillanceVehicleEntry>();
-}
-
-public class FIBSurveillanceVehicleEntry
-{
-    [XmlAttribute("model")]
-    public string Model { get; set; }
-}
-
 public class FIBSurveillanceDispatcher
 {
     private readonly IEntityProvideable World;
@@ -40,7 +26,7 @@ public class FIBSurveillanceDispatcher
     private uint LastUpdateGameTime;
     private bool HasInitializedRuntime;
     private LawEnforcementIntelligence CurrentRuntimeIntelligence;
-    private readonly HashSet<string> ConfiguredSurveillanceVehicleModels;
+    private readonly DispatchableVehicleGroup ConfiguredSurveillanceVehicleGroup;
     private bool HasLoggedUnavailableFleet;
     private const string SurveillanceVehicleConfigPath = "Plugins\\LosSantosRED\\FIBSurveillanceVehicles.xml";
 
@@ -67,7 +53,7 @@ public class FIBSurveillanceDispatcher
         ModItems = modItems;
         ShopMenus = shopMenus;
         Crimes = crimes;
-        ConfiguredSurveillanceVehicleModels = LoadSurveillanceVehicleConfiguration();
+        ConfiguredSurveillanceVehicleGroup = LoadSurveillanceVehicleConfiguration();
     }
 
     public void Update()
@@ -206,14 +192,15 @@ public class FIBSurveillanceDispatcher
     private RuntimeTeam SpawnTeam(string teamID, LawEnforcementIntelligenceSettings settings)
     {
         Agency fib = Agencies?.GetAgency("FIB");
-        if (fib == null || fib.Vehicles == null || fib.Personnel == null)
+        if (fib == null || fib.Personnel == null || ConfiguredSurveillanceVehicleGroup == null)
             return null;
 
-        // The external XML is the sole authority for which FIB fleet vehicles may be
-        // used for covert surveillance. No name-based or marked-vehicle fallback is allowed.
-        List<DispatchableVehicle> candidates = fib.Vehicles.Where(x => x != null && x.IsCar &&
-            !x.IsMotorcycle && !string.IsNullOrWhiteSpace(x.ModelName) &&
-            ConfiguredSurveillanceVehicleModels.Contains(x.ModelName.Trim())).ToList();
+        // The external DispatchableVehicleGroup is the complete surveillance fleet
+        // definition. It can configure model names, occupants, colors, extras, mods,
+        // plates, and customization independently of the normal FIB dispatch fleet.
+        List<DispatchableVehicle> candidates = ConfiguredSurveillanceVehicleGroup.DispatchableVehicles
+            .Where(x => x != null && x.IsCar && !x.IsMotorcycle &&
+                !string.IsNullOrWhiteSpace(x.ModelName)).ToList();
         DispatchablePerson agent = fib.Personnel.FirstOrDefault(x => x != null && !x.IsAnimal);
         if (candidates.Count == 0 || agent == null)
         {
@@ -313,9 +300,8 @@ public class FIBSurveillanceDispatcher
         return null;
     }
 
-    private static HashSet<string> LoadSurveillanceVehicleConfiguration()
+    private static DispatchableVehicleGroup LoadSurveillanceVehicleConfiguration()
     {
-        HashSet<string> models = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             string directory = Path.GetDirectoryName(SurveillanceVehicleConfigPath);
@@ -326,49 +312,57 @@ public class FIBSurveillanceDispatcher
             {
                 string template =
                     "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
-                    "<FIBSurveillanceVehicles>\r\n" +
-                    "  <Vehicles>\r\n" +
-                    "    <!-- Add one entry for each vehicle model already present in the FIB dispatchable fleet. -->\r\n" +
-                    "    <!-- Example: <Vehicle model=\"your_vehicle_model\" /> -->\r\n" +
-                    "  </Vehicles>\r\n" +
-                    "</FIBSurveillanceVehicles>\r\n";
+                    "<DispatchableVehicleGroup>\r\n" +
+                    "  <DispatchableVehicleGroupID>UnmarkedVehicles</DispatchableVehicleGroupID>\r\n" +
+                    "  <DispatchableVehicles />\r\n" +
+                    "  <DispatchbleVehicleGroupType>Other</DispatchbleVehicleGroupType>\r\n" +
+                    "</DispatchableVehicleGroup>\r\n";
                 File.WriteAllText(SurveillanceVehicleConfigPath, template);
                 EntryPoint.WriteToConsole("Created FIB surveillance vehicle configuration: " +
                     SurveillanceVehicleConfigPath, 1);
-                return models;
+                return null;
             }
 
-            XmlSerializer serializer = new XmlSerializer(typeof(FIBSurveillanceVehicleConfiguration));
+            XmlSerializer serializer = new XmlSerializer(typeof(DispatchableVehicleGroup));
             XmlReaderSettings readerSettings = new XmlReaderSettings
             {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null
             };
+            DispatchableVehicleGroup configuration;
             using (XmlReader reader = XmlReader.Create(SurveillanceVehicleConfigPath, readerSettings))
             {
-                FIBSurveillanceVehicleConfiguration configuration =
-                    serializer.Deserialize(reader) as FIBSurveillanceVehicleConfiguration;
-                if (configuration?.Vehicles != null)
-                {
-                    foreach (FIBSurveillanceVehicleEntry entry in configuration.Vehicles)
-                    {
-                        string model = entry?.Model?.Trim();
-                        if (!string.IsNullOrWhiteSpace(model))
-                            models.Add(model);
-                    }
-                }
+                configuration = serializer.Deserialize(reader) as DispatchableVehicleGroup;
             }
 
-            EntryPoint.WriteToConsole("Loaded " + models.Count +
-                " FIB surveillance vehicle model(s) from external XML.", 1);
+            if (configuration == null || configuration.DispatchableVehicles == null)
+                throw new InvalidDataException("The XML does not contain a valid DispatchableVehicleGroup.");
+
+            foreach (DispatchableVehicle vehicle in configuration.DispatchableVehicles)
+            {
+                if (vehicle == null || string.IsNullOrWhiteSpace(vehicle.ModelName))
+                    continue;
+
+                // Setup derives the GTA model type flags consumed by the spawn system.
+                // RequestedPlateTypes uses the global plate registry, which is not needed
+                // for this externally-defined fleet; ForcedPlateType remains supported.
+                vehicle.RequestedPlateTypes = null;
+                vehicle.Setup(null);
+            }
+
+            int eligibleCount = configuration.DispatchableVehicles.Count(x =>
+                x != null && x.IsCar && !x.IsMotorcycle &&
+                !string.IsNullOrWhiteSpace(x.ModelName));
+            EntryPoint.WriteToConsole("Loaded " + eligibleCount +
+                " FIB surveillance vehicle definition(s) from external XML.", 1);
+            return configuration;
         }
         catch (Exception ex)
         {
-            models.Clear();
             EntryPoint.WriteToConsole("FIB surveillance vehicle XML could not be loaded; " +
                 "surveillance vehicle spawning is disabled. " + ex.Message, 1);
+            return null;
         }
-        return models;
     }
 
     private void UpdateRuntimeTeams(LawEnforcementIntelligence intelligence, DateTime now,
