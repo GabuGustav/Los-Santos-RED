@@ -85,11 +85,19 @@ public class FIBSurveillanceDispatcher
                 x != null && x.State != SurveillanceAssignmentState.Available &&
                 x.State != SurveillanceAssignmentState.Completed))
             {
-                // Runtime entities are deliberately not restored from saves. Reacquire with a new team.
-                savedAssignment.State = SurveillanceAssignmentState.LostContact;
-                savedAssignment.LastStateChangedAt = modPlayer.CurrentDateTime;
+                // Runtime entities are deliberately not restored from saves. Complete the stale assignment,
+                // then allow a replacement team after a short reacquisition cooldown.
+                SurveillanceAssignmentManager assignmentManager =
+                    modPlayer.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager;
+                if (savedAssignment.State != SurveillanceAssignmentState.Disengaging &&
+                    savedAssignment.State != SurveillanceAssignmentState.Compromised)
+                    assignmentManager?.Transition(savedAssignment, SurveillanceAssignmentState.Disengaging,
+                        modPlayer.CurrentDateTime);
+                assignmentManager?.Transition(savedAssignment, SurveillanceAssignmentState.Completed,
+                    modPlayer.CurrentDateTime);
                 savedAssignment.ReplacementRequired = true;
                 savedAssignment.NextAssignmentAllowedAt = modPlayer.CurrentDateTime.AddMinutes(2);
+                savedAssignment.Notes = "Runtime surveillance entities are not restored from saves; a replacement team may be assigned after the reacquisition cooldown.";
             }
         }
         if (!settings.EnableFIBSurveillance || settings.MaxActiveFIBTeams <= 0)
