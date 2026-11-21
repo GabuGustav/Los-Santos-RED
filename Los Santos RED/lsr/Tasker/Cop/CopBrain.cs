@@ -969,20 +969,23 @@ public class CopBrain : PedBrain
         PedExt target = GetPlayerPedExt();
         if (target == null || !target.Pedestrian.Exists())
             return false;
-        modPlayer.BeginWarrantApprehension(warrant.ID);
-        SetWarrantApprehend(target);
+        SetWarrantApprehend(target, warrant.ID);
         return true;
     }
 
-    private void SetWarrantApprehend(PedExt target)
+    private void SetWarrantApprehend(PedExt target, string warrantID)
     {
         if (Cop.CurrentTask is AIApprehend existing && existing.IsWarrantApprehension)
             return;
+        string officerID = Cop.Pedestrian.Handle.ToString();
+        (Player as Mod.Player)?.BeginWarrantApprehension(warrantID, officerID);
         AIApprehend task = new AIApprehend(Cop, Player, Cop, Settings)
         {
             OtherTarget = target,
             UseWantedLevel = false,
-            IsWarrantApprehension = true
+            IsWarrantApprehension = true,
+            WarrantID = warrantID,
+            WarrantOfficerID = officerID
         };
         Cop.CurrentTask = task;
         Cop.WeaponInventory.Reset();
