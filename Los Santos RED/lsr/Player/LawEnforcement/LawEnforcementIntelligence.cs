@@ -8,7 +8,7 @@ namespace LosSantosRED.lsr
     // a data-only model: collection and decision-making are added in later phases.
     public class LawEnforcementIntelligence
     {
-        public int SchemaVersion { get; set; } = 4;
+        public int SchemaVersion { get; set; } = 5;
         public string SubjectID { get; set; } = "PLAYER";
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
@@ -20,6 +20,9 @@ namespace LosSantosRED.lsr
         public List<PoliceOperationRecord> PoliceOperations { get; set; } = new List<PoliceOperationRecord>();
         public List<VehicleAssociationRecord> VehicleAssociations { get; set; } = new List<VehicleAssociationRecord>();
         public List<AlertDisseminationRecord> AlertDisseminations { get; set; } = new List<AlertDisseminationRecord>();
+        public List<InvestigationAccessRequest> AccessRequests { get; set; } = new List<InvestigationAccessRequest>();
+        public List<InvestigationAccessGrant> AccessGrants { get; set; } = new List<InvestigationAccessGrant>();
+        public List<IntelligenceAccessAuditEntry> AccessAuditEntries { get; set; } = new List<IntelligenceAccessAuditEntry>();
 
         // Use registration identity before the displayed plate so plate changes do not split one vehicle across records.
         public static string GetVehicleIdentity(string registrationID, string plateNumber)
@@ -97,6 +100,15 @@ namespace LosSantosRED.lsr
                     if (item != null) copy.AlertDisseminations.Add(item.Copy());
                 }
             }
+            if (AccessRequests != null)
+                foreach (InvestigationAccessRequest item in AccessRequests)
+                    if (item != null) copy.AccessRequests.Add(item.Copy());
+            if (AccessGrants != null)
+                foreach (InvestigationAccessGrant item in AccessGrants)
+                    if (item != null) copy.AccessGrants.Add(item.Copy());
+            if (AccessAuditEntries != null)
+                foreach (IntelligenceAccessAuditEntry item in AccessAuditEntries)
+                    if (item != null) copy.AccessAuditEntries.Add(item.Copy());
             return copy;
         }
 
@@ -898,7 +910,7 @@ namespace LosSantosRED.lsr
 
         public void Normalize()
         {
-            if (SchemaVersion < 4) SchemaVersion = 4;
+            if (SchemaVersion < 5) SchemaVersion = 5;
             if (string.IsNullOrWhiteSpace(SubjectID)) SubjectID = "PLAYER";
             if (Observations == null) Observations = new List<IntelligenceObservation>();
             if (Investigations == null) Investigations = new List<InvestigationRecord>();
@@ -908,6 +920,27 @@ namespace LosSantosRED.lsr
             if (PoliceOperations == null) PoliceOperations = new List<PoliceOperationRecord>();
             if (VehicleAssociations == null) VehicleAssociations = new List<VehicleAssociationRecord>();
             if (AlertDisseminations == null) AlertDisseminations = new List<AlertDisseminationRecord>();
+            if (AccessRequests == null) AccessRequests = new List<InvestigationAccessRequest>();
+            if (AccessGrants == null) AccessGrants = new List<InvestigationAccessGrant>();
+            if (AccessAuditEntries == null) AccessAuditEntries = new List<IntelligenceAccessAuditEntry>();
+            foreach (InvestigationAccessRequest request in AccessRequests.Where(x => x != null))
+            {
+                if (string.IsNullOrWhiteSpace(request.ID)) request.ID = Guid.NewGuid().ToString("N");
+                if (string.IsNullOrWhiteSpace(request.RequestingAgencyID) ||
+                    string.IsNullOrWhiteSpace(request.InvestigationID) ||
+                    string.IsNullOrWhiteSpace(request.Purpose))
+                    request.Status = InvestigationAccessRequestStatus.Denied;
+            }
+            foreach (InvestigationAccessGrant grant in AccessGrants.Where(x => x != null))
+            {
+                if (string.IsNullOrWhiteSpace(grant.ID)) grant.ID = Guid.NewGuid().ToString("N");
+                if (string.IsNullOrWhiteSpace(grant.InvestigationID) ||
+                    string.IsNullOrWhiteSpace(grant.GrantedToAgencyID) ||
+                    string.IsNullOrWhiteSpace(grant.GrantedByAgencyID))
+                    grant.IsRevoked = true;
+            }
+            foreach (IntelligenceAccessAuditEntry entry in AccessAuditEntries.Where(x => x != null))
+                if (string.IsNullOrWhiteSpace(entry.ID)) entry.ID = Guid.NewGuid().ToString("N");
             foreach (AlertDisseminationRecord delivery in AlertDisseminations.Where(x => x != null))
             {
                 if (string.IsNullOrWhiteSpace(delivery.ID)) delivery.ID = Guid.NewGuid().ToString("N");
@@ -1017,6 +1050,102 @@ namespace LosSantosRED.lsr
                 SendingAgencyID = SendingAgencyID, ReceivingAgencyID = ReceivingAgencyID,
                 ScheduledAt = ScheduledAt, AvailableAt = AvailableAt, DeliveredAt = DeliveredAt,
                 Status = Status, IsMutualAid = IsMutualAid, Notes = Notes
+            };
+        }
+    }
+
+
+    public enum InvestigationAccessScope
+    {
+        Summary,
+        CaseFile,
+        Evidence,
+        Operational
+    }
+
+    public enum InvestigationAccessRequestStatus
+    {
+        Pending,
+        Approved,
+        Denied,
+        Expired,
+        Cancelled
+    }
+
+    public class InvestigationAccessRequest
+    {
+        public string ID { get; set; }
+        public string InvestigationID { get; set; }
+        public string RequestingAgencyID { get; set; }
+        public string OwningAgencyID { get; set; }
+        public InvestigationAccessScope RequestedScope { get; set; }
+        public string Purpose { get; set; }
+        public DateTime RequestedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public InvestigationAccessRequestStatus Status { get; set; } = InvestigationAccessRequestStatus.Pending;
+        public string DecidedByAgencyID { get; set; }
+        public DateTime? DecidedAt { get; set; }
+        public InvestigationAccessScope? ApprovedScope { get; set; }
+        public string GrantID { get; set; }
+        public string DecisionNotes { get; set; }
+
+        public InvestigationAccessRequest Copy()
+        {
+            return new InvestigationAccessRequest
+            {
+                ID = ID, InvestigationID = InvestigationID, RequestingAgencyID = RequestingAgencyID,
+                OwningAgencyID = OwningAgencyID, RequestedScope = RequestedScope, Purpose = Purpose,
+                RequestedAt = RequestedAt, ExpiresAt = ExpiresAt, Status = Status,
+                DecidedByAgencyID = DecidedByAgencyID, DecidedAt = DecidedAt,
+                ApprovedScope = ApprovedScope, GrantID = GrantID, DecisionNotes = DecisionNotes
+            };
+        }
+    }
+
+    public class InvestigationAccessGrant
+    {
+        public string ID { get; set; }
+        public string RequestID { get; set; }
+        public string InvestigationID { get; set; }
+        public string GrantedToAgencyID { get; set; }
+        public string GrantedByAgencyID { get; set; }
+        public InvestigationAccessScope Scope { get; set; }
+        public DateTime GrantedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public bool IsRevoked { get; set; }
+        public DateTime? RevokedAt { get; set; }
+        public string RevocationReason { get; set; }
+
+        public InvestigationAccessGrant Copy()
+        {
+            return new InvestigationAccessGrant
+            {
+                ID = ID, RequestID = RequestID, InvestigationID = InvestigationID,
+                GrantedToAgencyID = GrantedToAgencyID, GrantedByAgencyID = GrantedByAgencyID,
+                Scope = Scope, GrantedAt = GrantedAt, ExpiresAt = ExpiresAt,
+                IsRevoked = IsRevoked, RevokedAt = RevokedAt, RevocationReason = RevocationReason
+            };
+        }
+    }
+
+    public class IntelligenceAccessAuditEntry
+    {
+        public string ID { get; set; }
+        public string InvestigationID { get; set; }
+        public string RequestID { get; set; }
+        public string ActorAgencyID { get; set; }
+        public string Action { get; set; }
+        public InvestigationAccessScope? Scope { get; set; }
+        public DateTime OccurredAt { get; set; }
+        public string Notes { get; set; }
+
+        public IntelligenceAccessAuditEntry Copy()
+        {
+            return new IntelligenceAccessAuditEntry
+            {
+                ID = ID, InvestigationID = InvestigationID, RequestID = RequestID,
+                ActorAgencyID = ActorAgencyID, Action = Action, Scope = Scope,
+                OccurredAt = OccurredAt, Notes = Notes
             };
         }
     }
