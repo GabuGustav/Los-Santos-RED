@@ -389,10 +389,11 @@ namespace LosSantosRED.lsr
             if (sourceID != null && sourceID.StartsWith("FIB_SURVEILLANCE:", StringComparison.Ordinal) &&
                 VehicleAssociations != null)
             {
-                VehicleAssociationRecord surveillancePrevious = VehicleAssociations.FirstOrDefault(x => x != null &&
+                VehicleAssociationRecord surveillancePrevious = VehicleAssociations.Where(x => x != null &&
                     x.VehicleID == vehicleID && x.AssociationType == associationType &&
                     x.SourceID == sourceID && x.ObservedAt <= observedAt &&
-                    observedAt - x.ObservedAt < TimeSpan.FromMinutes(30));
+                    observedAt - x.ObservedAt < TimeSpan.FromMinutes(30))
+                    .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
                 if (surveillancePrevious != null)
                 {
                     if (string.IsNullOrWhiteSpace(surveillancePrevious.ID))
