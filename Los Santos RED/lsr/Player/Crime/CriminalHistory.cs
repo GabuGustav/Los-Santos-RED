@@ -88,7 +88,7 @@ namespace LosSantosRED.lsr
         {
             if (modPlayer == null || crimesAssociated == null ||
                 modPlayer.CurrentDateTime == DateTime.MinValue ||
-                modPlayer.Settings?.SettingsManager?.LawEnforcementIntelligenceSettings?.EnableWarrants != true)
+                !modPlayer.LawEnforcementWarrantsEnabled)
                 return;
 
             List<CrimeEvent> identifiedCrimes = crimesAssociated
