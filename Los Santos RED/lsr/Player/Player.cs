@@ -231,18 +231,13 @@ namespace Mod
             if (LawEnforcementIntelligence == null)
                 LawEnforcementIntelligence = new LawEnforcementIntelligence();
 
-            List<string> ownedBusinessIDs = Properties == null ? new List<string>() : Properties.PropertyList
-                .OfType<Business>()
-                .Where(x => x != null && x.IsOwned)
-                .Select(x => string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                    "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", x.Name, x.EntrancePosition.X, x.EntrancePosition.Y, x.EntrancePosition.Z))
-                .ToList();
+            IEnumerable<GameLocation> currentProperties = Properties?.PropertyList;
             IntelligenceObservation residenceEvidence = null;
             if (CurrentDateTime != DateTime.MinValue && LawEnforcementIntelligence.Observations != null)
             {
                 DateTime residenceEvidenceCutoff = CurrentDateTime.AddDays(-30);
-                string residenceTargetID = string.IsNullOrWhiteSpace(suspectedResidenceID)
-                    ? null : "RESIDENCE:" + suspectedResidenceID;
+                string requestedResidenceID = string.IsNullOrWhiteSpace(suspectedResidenceID)
+                    ? null : suspectedResidenceID.Trim();
                 residenceEvidence = LawEnforcementIntelligence.Observations
                     .Where(x => x != null && x.IsKnownToPolice && x.IsVerified &&
                         x.TargetType == IntelligenceTargetType.Location &&
@@ -250,13 +245,14 @@ namespace Mod
                         x.ObservedAt >= residenceEvidenceCutoff && x.ObservedAt <= CurrentDateTime &&
                         !string.IsNullOrWhiteSpace(x.TargetID) &&
                         x.TargetID.StartsWith("RESIDENCE:", StringComparison.OrdinalIgnoreCase) &&
-                        (residenceTargetID == null || string.Equals(x.TargetID, residenceTargetID,
-                            StringComparison.OrdinalIgnoreCase)))
+                        (requestedResidenceID == null ||
+                         string.Equals(x.TargetID, requestedResidenceID, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(x.TargetDescription, requestedResidenceID, StringComparison.OrdinalIgnoreCase)))
                     .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
                 if (residenceEvidence != null)
                 {
-                    if (string.IsNullOrWhiteSpace(suspectedResidenceID))
-                        suspectedResidenceID = residenceEvidence.TargetID.Substring("RESIDENCE:".Length);
+                    // Persist the exact canonical residence identity; do not prepend the prefix twice.
+                    suspectedResidenceID = residenceEvidence.TargetID;
                     float inferredResidenceConfidence = Math.Max(0f, Math.Min(1f, residenceEvidence.Confidence * 0.9f));
                     if (float.IsNaN(residenceConfidence) || float.IsInfinity(residenceConfidence) ||
                         residenceConfidence < inferredResidenceConfidence)
@@ -265,7 +261,7 @@ namespace Mod
             }
             WarrantRecord issuedWarrant = LawEnforcementIntelligenceManager?.WarrantManager?.Issue(
                 LawEnforcementIntelligence, CurrentDateTime, type, priority, issuingAgencyID,
-                jurisdictionID, linkedCrimeIDs, ownedBusinessIDs, suspectedResidenceID,
+                jurisdictionID, linkedCrimeIDs, currentProperties, suspectedResidenceID,
                 residenceConfidence, expiresAt);
             if (issuedWarrant != null && residenceEvidence != null)
             {
