@@ -80,6 +80,28 @@ namespace LosSantosRED.lsr
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt).FirstOrDefault();
         }
 
+        // Dispatch or mutual-aid systems call this when another agency receives the alert.
+        // The warrant itself is not copied or restricted; only the recipient's awareness changes.
+        public bool DisseminateToAgency(LawEnforcementIntelligence intelligence, string warrantID, string receivingAgencyID)
+        {
+            if (intelligence == null || string.IsNullOrWhiteSpace(warrantID) ||
+                string.IsNullOrWhiteSpace(receivingAgencyID)) return false;
+            WarrantRecord warrant = intelligence.Warrants?.FirstOrDefault(x => x != null &&
+                x.ID == warrantID && x.Status == WarrantStatus.Active);
+            if (warrant == null) return false;
+            if (warrant.KnownToAgencyIDs == null) warrant.KnownToAgencyIDs = new List<string>();
+            bool changed = !warrant.KnownToAgencyIDs.Contains(receivingAgencyID, StringComparer.OrdinalIgnoreCase);
+            if (changed) warrant.KnownToAgencyIDs.Add(receivingAgencyID);
+            foreach (BOLORecord bolo in intelligence.BOLOs?.Where(x => x != null && x.Status == BOLOStatus.Active &&
+                string.Equals(x.LinkedWarrantID, warrant.ID, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<BOLORecord>())
+            {
+                if (bolo.KnownToAgencyIDs == null) bolo.KnownToAgencyIDs = new List<string>();
+                if (!bolo.KnownToAgencyIDs.Contains(receivingAgencyID, StringComparer.OrdinalIgnoreCase))
+                    bolo.KnownToAgencyIDs.Add(receivingAgencyID);
+            }
+            return changed;
+        }
+
         public IEnumerable<WarrantRecord> GetActive(LawEnforcementIntelligence intelligence)
         {
             if (intelligence == null || intelligence.Warrants == null) return Enumerable.Empty<WarrantRecord>();
