@@ -149,21 +149,21 @@ namespace LosSantosRED.lsr
                 Warrants = new List<WarrantRecord>();
             bool recorded = RecordOrRefreshObservation(observation);
             string residenceTargetID = "RESIDENCE:" + residenceID;
-            IntelligenceObservation storedObservation = Observations.Where(x => x != null &&
-                x.Source == source && x.SourceID == sourceID &&
-                x.EvidenceType == IntelligenceEvidenceType.VisualSighting &&
-                string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
-                x.IsKnownToPolice && x.IsVerified)
-                .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
+            IntelligenceObservation storedObservation = Observations.Where(candidate => candidate != null &&
+                candidate.Source == source && candidate.SourceID == sourceID &&
+                candidate.EvidenceType == IntelligenceEvidenceType.VisualSighting &&
+                string.Equals(candidate.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
+                candidate.IsKnownToPolice && candidate.IsVerified)
+                .OrderByDescending(candidate => candidate.ObservedAt).FirstOrDefault();
 
             if (storedObservation != null)
             {
                 float inferredConfidence = NormalizeProbability(storedObservation.Confidence * 0.9f);
-                foreach (WarrantRecord warrant in Warrants.Where(x => x != null &&
-                    x.Status == WarrantStatus.Active &&
-                    (x.Type == WarrantType.Arrest || x.Type == WarrantType.Bench ||
-                     x.Type == WarrantType.ProbationParole || x.Type == WarrantType.Extradition) &&
-                    storedObservation.ObservedAt >= x.IssuedAt))
+                foreach (WarrantRecord warrant in Warrants.Where(candidate => candidate != null &&
+                    candidate.Status == WarrantStatus.Active &&
+                    (candidate.Type == WarrantType.Arrest || candidate.Type == WarrantType.Bench ||
+                     candidate.Type == WarrantType.ProbationParole || candidate.Type == WarrantType.Extradition) &&
+                    storedObservation.ObservedAt >= candidate.IssuedAt))
                 {
                     if (string.IsNullOrWhiteSpace(warrant.SuspectedResidenceID) ||
                         inferredConfidence > warrant.ResidenceConfidence)
@@ -394,10 +394,6 @@ namespace LosSantosRED.lsr
                 normalizedPlate != null
                     ? "Displayed plate and vehicle were confirmed by an active police ANPR scan."
                     : "Vehicle identity was associated through its registration record during an active police scan.");
-            return recorded;
-        } (officerID ?? "UNKNOWN"), 0.98f, true,
-                    "Vehicle and displayed plate were confirmed by an active police ANPR scan while the player was visibly driving.");
-            }
             return recorded;
         }
 
