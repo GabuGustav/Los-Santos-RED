@@ -207,7 +207,7 @@ public class FIBSurveillanceDispatcher
             if (!HasLoggedUnavailableFleet)
             {
                 string reason = candidates.Count == 0
-                    ? "none of the XML-listed models are available as FIB dispatchable cars"
+                    ? "the XML contains no eligible car vehicle definitions"
                     : "no eligible FIB personnel are configured";
                 EntryPoint.WriteToConsole("FIB surveillance unavailable: " + reason + ".", 1);
                 HasLoggedUnavailableFleet = true;
