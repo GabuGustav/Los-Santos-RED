@@ -2085,11 +2085,24 @@ namespace Mod
         }
         private void ResolveWarrantApprehension()
         {
-            if (string.IsNullOrWhiteSpace(WarrantApprehensionID))
-                return;
-
-            LawEnforcementIntelligence?.ResolveWarrant(WarrantApprehensionID, WarrantStatus.Served,
-                CurrentDateTime, "Subject arrested");
+            IEnumerable<WarrantRecord> activeWarrants =
+                LawEnforcementIntelligenceManager?.WarrantManager?.GetActive(LawEnforcementIntelligence);
+            if (activeWarrants != null)
+            {
+                foreach (WarrantRecord warrant in activeWarrants
+                    .Where(x => x != null &&
+                        LawEnforcementIntelligenceManager.WarrantManager.CanAuthorizeArrest(x))
+                    .ToList())
+                {
+                    LawEnforcementIntelligence?.ResolveWarrant(warrant.ID, WarrantStatus.Served,
+                        CurrentDateTime, "Subject arrested");
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(WarrantApprehensionID))
+            {
+                LawEnforcementIntelligence?.ResolveWarrant(WarrantApprehensionID, WarrantStatus.Served,
+                    CurrentDateTime, "Subject arrested");
+            }
             WarrantApprehensionID = null;
         }
 
