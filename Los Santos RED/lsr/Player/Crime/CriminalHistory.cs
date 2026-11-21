@@ -118,6 +118,10 @@ namespace LosSantosRED.lsr
             LawEnforcementIntelligenceManager intelligenceManager =
                 modPlayer.LawEnforcementIntelligenceManager;
             WarrantManager warrantManager = intelligenceManager?.WarrantManager;
+            LawEnforcementIntelligenceSettings intelligenceSettings =
+                Settings?.SettingsManager?.LawEnforcementIntelligenceSettings;
+            warrantManager?.UpdateExpirations(intelligence, modPlayer.CurrentDateTime,
+                intelligenceSettings);
 
             // Reuse the same active arrest authority even after the subject crosses a
             // jurisdiction boundary. Discovery remains agency-scoped; this lookup is only
@@ -155,8 +159,6 @@ namespace LosSantosRED.lsr
             string receivingAgencyID = modPlayer.AssignedAgency?.ID;
             string sendingAgencyID = warrant.IssuingAgencyID ??
                 warrant.KnownToAgencyIDs?.FirstOrDefault();
-            LawEnforcementIntelligenceSettings intelligenceSettings =
-                Settings?.SettingsManager?.LawEnforcementIntelligenceSettings;
             if (reusedExistingWarrant && !string.IsNullOrWhiteSpace(receivingAgencyID) &&
                 !string.Equals(receivingAgencyID, sendingAgencyID, StringComparison.OrdinalIgnoreCase) &&
                 (warrant.KnownToAgencyIDs == null ||
