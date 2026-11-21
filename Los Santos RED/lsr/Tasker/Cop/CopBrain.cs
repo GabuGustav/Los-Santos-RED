@@ -407,7 +407,6 @@ public class CopBrain : PedBrain
         GameTimeANPRScanStarted = Game.GameTime;
         vehicle.GameTimeLastANPRScan = Game.GameTime;
 
-        Mod.Player modPlayer = Player as Mod.Player;
         if (modPlayer != null && modPlayer.Inventory.Has(typeof(RadioItem)) &&
             Settings.SettingsManager.ScannerSettings.EnableNotifications)
         {
