@@ -2635,11 +2635,7 @@ namespace Mod
                 return;
             string registrationID = vehicle.CarPlate?.RegistrationId;
             string plate = vehicle.CarPlate?.PlateNumber ?? vehicle.Vehicle.LicensePlate;
-            string vehicleID = !string.IsNullOrWhiteSpace(plate)
-                ? "PLATE:" + plate.Trim().ToUpperInvariant()
-                : !string.IsNullOrWhiteSpace(registrationID)
-                    ? "REG:" + registrationID.Trim().ToUpperInvariant()
-                    : null;
+            string vehicleID = LawEnforcementIntelligence.GetVehicleIdentity(registrationID, plate);
             if (string.IsNullOrWhiteSpace(vehicleID))
                 return;
             LawEnforcementIntelligence.RecordVehicleAssociation(CurrentDateTime, vehicleID,
