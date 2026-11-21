@@ -143,7 +143,10 @@ namespace LosSantosRED.lsr
                 LocationName = locationName,
                 Notes = notes
             };
-            Normalize();
+            if (Observations == null)
+                Observations = new List<IntelligenceObservation>();
+            if (Warrants == null)
+                Warrants = new List<WarrantRecord>();
             bool recorded = RecordOrRefreshObservation(observation);
             string residenceTargetID = "RESIDENCE:" + residenceID;
             IntelligenceObservation storedObservation = Observations.FirstOrDefault(x => x != null &&
