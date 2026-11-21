@@ -823,8 +823,17 @@ namespace LosSantosRED.lsr
             Normalize();
             InvestigationRecord investigation = Investigations.FirstOrDefault(x => x != null && x.SubjectID == SubjectID &&
                 x.Stage != InvestigationStage.Closed && x.Stage != InvestigationStage.Suspended);
-            if (investigation == null)
+            bool createdNewInvestigation = investigation == null;
+            DateTime previousCaseCutoff = DateTime.MinValue;
+            if (createdNewInvestigation)
             {
+                InvestigationRecord previousCase = Investigations
+                    .Where(x => x != null && x.SubjectID == SubjectID &&
+                        (x.Stage == InvestigationStage.Closed || x.Stage == InvestigationStage.Suspended))
+                    .OrderByDescending(x => x.LastActivityAt).FirstOrDefault();
+                if (previousCase != null)
+                    previousCaseCutoff = previousCase.LastActivityAt;
+
                 investigation = new InvestigationRecord
                 {
                     ID = Guid.NewGuid().ToString("N"), SubjectID = SubjectID, Stage = InvestigationStage.Preliminary,
@@ -837,6 +846,8 @@ namespace LosSantosRED.lsr
             if (investigation.KnownLocationIDs == null) investigation.KnownLocationIDs = new List<string>();
             List<IntelligenceObservation> evidence = Observations.Where(observation => observation != null &&
                 observation.IsKnownToPolice && observation.ObservedAt <= currentTime &&
+                (!createdNewInvestigation || previousCaseCutoff == DateTime.MinValue ||
+                 observation.ObservedAt > previousCaseCutoff) &&
                 (observation.EvidenceType != IntelligenceEvidenceType.BusinessVisit ||
                  Warrants.Any(warrant => warrant != null &&
                     warrant.IssuedAt <= observation.ObservedAt))).ToList();
