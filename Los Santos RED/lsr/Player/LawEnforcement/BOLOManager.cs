@@ -62,5 +62,10 @@ namespace LosSantosRED.lsr
         {
             return intelligence != null && intelligence.SetBOLOStatus(boloID, BOLOStatus.Cancelled, at);
         }
+
+        public bool Resolve(LawEnforcementIntelligence intelligence, string boloID, DateTime at)
+        {
+            return intelligence != null && intelligence.SetBOLOStatus(boloID, BOLOStatus.Resolved, at);
+        }
     }
 }
