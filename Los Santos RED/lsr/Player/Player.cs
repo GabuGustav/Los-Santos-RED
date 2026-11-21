@@ -237,6 +237,30 @@ namespace Mod
                 .Select(x => string.Format(System.Globalization.CultureInfo.InvariantCulture,
                     "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", x.Name, x.EntrancePosition.X, x.EntrancePosition.Y, x.EntrancePosition.Z))
                 .ToList();
+            if (CurrentDateTime != DateTime.MinValue && LawEnforcementIntelligence.Observations != null)
+            {
+                DateTime residenceEvidenceCutoff = CurrentDateTime.AddDays(-30);
+                string residenceTargetID = string.IsNullOrWhiteSpace(suspectedResidenceID)
+                    ? null : "RESIDENCE:" + suspectedResidenceID;
+                IntelligenceObservation residenceEvidence = LawEnforcementIntelligence.Observations
+                    .Where(x => x != null && x.IsKnownToPolice && x.IsVerified &&
+                        x.TargetType == IntelligenceTargetType.Location &&
+                        (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
+                        x.ObservedAt >= residenceEvidenceCutoff && x.ObservedAt <= CurrentDateTime &&
+                        !string.IsNullOrWhiteSpace(x.TargetID) &&
+                        x.TargetID.StartsWith("RESIDENCE:", StringComparison.OrdinalIgnoreCase) &&
+                        (residenceTargetID == null || string.Equals(x.TargetID, residenceTargetID,
+                            StringComparison.OrdinalIgnoreCase)))
+                    .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
+                if (residenceEvidence != null)
+                {
+                    if (string.IsNullOrWhiteSpace(suspectedResidenceID))
+                        suspectedResidenceID = residenceEvidence.TargetID.Substring("RESIDENCE:".Length);
+                    if (float.IsNaN(residenceConfidence) || float.IsInfinity(residenceConfidence) ||
+                        residenceConfidence <= 0f)
+                        residenceConfidence = Math.Max(0f, Math.Min(1f, residenceEvidence.Confidence * 0.9f));
+                }
+            }
             return LawEnforcementIntelligenceManager?.WarrantManager?.Issue(LawEnforcementIntelligence,
                 CurrentDateTime, type, priority, issuingAgencyID, jurisdictionID, linkedCrimeIDs,
                 ownedBusinessIDs, suspectedResidenceID, residenceConfidence, expiresAt);
