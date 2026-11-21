@@ -112,6 +112,42 @@ namespace LosSantosRED.lsr
             return recorded;
         }
 
+        public bool RecordResidenceObservation(DateTime observedAt, IntelligenceSource source,
+            string sourceID, string residenceID, string residenceName, float x, float y, float z,
+            string locationID = null, string locationName = null, float confidence = 0.9f)
+        {
+            if (observedAt == DateTime.MinValue ||
+                (source != IntelligenceSource.PatrolOfficer && source != IntelligenceSource.Surveillance) ||
+                string.IsNullOrWhiteSpace(sourceID) || string.IsNullOrWhiteSpace(residenceID))
+                return false;
+            string notes = source == IntelligenceSource.Surveillance
+                ? "FIB surveillance visually observed the subject at this residence."
+                : "Patrol officer visually observed the subject at this residence.";
+            IntelligenceObservation observation = new IntelligenceObservation
+            {
+                ObservedAt = observedAt,
+                Source = source,
+                EvidenceType = IntelligenceEvidenceType.VisualSighting,
+                TargetType = IntelligenceTargetType.Location,
+                TargetID = "RESIDENCE:" + residenceID,
+                TargetDescription = residenceName,
+                SourceID = sourceID,
+                EntityID = SubjectID,
+                IsKnownToPolice = true,
+                IsVerified = true,
+                Confidence = NormalizeProbability(confidence),
+                PositionX = x,
+                PositionY = y,
+                PositionZ = z,
+                LocationID = locationID,
+                LocationName = locationName,
+                Notes = notes
+            };
+            return source == IntelligenceSource.Surveillance
+                ? RecordOrRefreshSurveillanceObservation(observation)
+                : RecordObservation(observation);
+        }
+
         public bool RecordPreviouslyDrivenVehicle(DateTime observedAt, string officerID,
             string vehicleID, string vehicleDescription, float x, float y, float z,
             string locationID = null, string locationName = null)
