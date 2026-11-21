@@ -127,8 +127,9 @@ namespace LosSantosRED.lsr
         public void UpdateExpirations(LawEnforcementIntelligence intelligence, DateTime currentTime,
             LawEnforcementIntelligenceSettings settings = null)
         {
-            if (intelligence == null || intelligence.Warrants == null || currentTime == DateTime.MinValue)
+            if (intelligence == null || currentTime == DateTime.MinValue)
                 return;
+            intelligence.Normalize();
 
             // Expire BOLOs first so a suspended alert cannot be reactivated after its deadline.
             intelligence.UpdateExpirations(currentTime);
