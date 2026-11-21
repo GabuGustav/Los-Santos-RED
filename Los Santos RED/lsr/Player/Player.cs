@@ -263,31 +263,6 @@ namespace Mod
                 LawEnforcementIntelligence, CurrentDateTime, type, priority, issuingAgencyID,
                 jurisdictionID, linkedCrimeIDs, currentProperties, suspectedResidenceID,
                 residenceConfidence, expiresAt);
-            if (issuedWarrant != null)
-            {
-                if (issuedWarrant.EvidenceObservationIDs == null)
-                    issuedWarrant.EvidenceObservationIDs = new List<string>();
-
-                // Attach verified police-known evidence available at issuance. A business visit
-                // is eligible only if it was already independently corroborated while an earlier
-                // warrant was active; the new warrant must not retroactively legitimize old visits.
-                DateTime evidenceCutoff = CurrentDateTime.AddDays(-30);
-                IEnumerable<IntelligenceObservation> supportingEvidence = LawEnforcementIntelligence.Observations
-                    .Where(observation => observation != null && observation.IsKnownToPolice &&
-                        observation.IsVerified && observation.ObservedAt >= evidenceCutoff &&
-                        observation.ObservedAt <= CurrentDateTime &&
-                        (observation.EvidenceType != IntelligenceEvidenceType.BusinessVisit ||
-                         LawEnforcementIntelligence.Warrants.Any(existingWarrant => existingWarrant != null &&
-                            existingWarrant.ID != issuedWarrant.ID &&
-                            existingWarrant.IssuedAt <= observation.ObservedAt)));
-
-                foreach (IntelligenceObservation observation in supportingEvidence)
-                {
-                    if (!string.IsNullOrWhiteSpace(observation.ID) &&
-                        !issuedWarrant.EvidenceObservationIDs.Contains(observation.ID))
-                        issuedWarrant.EvidenceObservationIDs.Add(observation.ID);
-                }
-            }
             return issuedWarrant;
         }
         public BOLORecord IssueLawEnforcementBOLO(BOLOTargetType targetType, string description,
