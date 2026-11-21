@@ -210,7 +210,12 @@ namespace Mod
         }
 
         private string WarrantApprehensionID { get; set; }
-        public WarrantRecord ActiveArrestWarrant => LawEnforcementIntelligenceManager?.WarrantManager?.FindActive(LawEnforcementIntelligence, AssignedAgency?.ID, null);
+        // A player's warrant status is global; an agency's awareness is a separate concern.
+        // Keep the agency-scoped lookup available for dispatch and operational decisions.
+        public WarrantRecord ActiveArrestWarrant => LawEnforcementIntelligenceManager?.WarrantManager?.GetActive(LawEnforcementIntelligence)
+            ?.FirstOrDefault(warrant => LawEnforcementIntelligenceManager.WarrantManager.CanAuthorizeArrest(warrant));
+        public WarrantRecord ActiveArrestWarrantForAssignedAgency => LawEnforcementIntelligenceManager?.WarrantManager
+            ?.FindActive(LawEnforcementIntelligence, AssignedAgency?.ID, null);
         public bool HasActiveArrestWarrant => ActiveArrestWarrant != null;
 
         public void BeginWarrantApprehension(string warrantID)
