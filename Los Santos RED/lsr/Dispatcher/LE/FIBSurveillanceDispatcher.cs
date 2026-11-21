@@ -455,7 +455,8 @@ public class FIBSurveillanceDispatcher
         string vehicleDescription = null;
         if (inVehicle)
         {
-            string plate = Player.CurrentVehicle.CarPlate?.PlateNumber;
+            string plate = Player.CurrentVehicle.CarPlate?.PlateNumber ??
+                Player.CurrentVehicle.Vehicle.LicensePlate;
             string registrationID = Player.CurrentVehicle.CarPlate?.RegistrationId;
             vehicleID = !string.IsNullOrWhiteSpace(registrationID)
                 ? "REG:" + registrationID.Trim().ToUpperInvariant()
