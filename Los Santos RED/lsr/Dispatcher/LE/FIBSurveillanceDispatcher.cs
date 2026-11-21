@@ -11,7 +11,7 @@ using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
 
- [XmlRoot("FIBSurveillanceVehicles")]
+[XmlRoot("FIBSurveillanceVehicles")]
 public class FIBSurveillanceVehicleConfiguration
 {
     [XmlArray("Vehicles")]
@@ -325,13 +325,13 @@ public class FIBSurveillanceDispatcher
             if (!File.Exists(SurveillanceVehicleConfigPath))
             {
                 string template =
-                    "<?xml version=\\"1.0\\" encoding=\\"utf-8\\"?>\\r\\n" +
-                    "<FIBSurveillanceVehicles>\\r\\n" +
-                    "  <Vehicles>\\r\\n" +
-                    "    <!-- Add one entry for each vehicle model already present in the FIB dispatchable fleet. -->\\r\\n" +
-                    "    <!-- Example: <Vehicle model=\\"your_vehicle_model\\" /> -->\\r\\n" +
-                    "  </Vehicles>\\r\\n" +
-                    "</FIBSurveillanceVehicles>\\r\\n";
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                    "<FIBSurveillanceVehicles>\r\n" +
+                    "  <Vehicles>\r\n" +
+                    "    <!-- Add one entry for each vehicle model already present in the FIB dispatchable fleet. -->\r\n" +
+                    "    <!-- Example: <Vehicle model=\"your_vehicle_model\" /> -->\r\n" +
+                    "  </Vehicles>\r\n" +
+                    "</FIBSurveillanceVehicles>\r\n";
                 File.WriteAllText(SurveillanceVehicleConfigPath, template);
                 EntryPoint.WriteToConsole("Created FIB surveillance vehicle configuration: " +
                     SurveillanceVehicleConfigPath, 1);
