@@ -16,6 +16,7 @@ namespace LosSantosRED.lsr
     public class CriminalHistory
     {
         private BOLO CurrentHistory;
+        private string LawEnforcementBOLOID;
         private IPoliceRespondable Player;
         private ISettingsProvideable Settings;
         private ITimeReportable Time;
@@ -43,12 +44,54 @@ namespace LosSantosRED.lsr
                 CriminalHistoryBlip.Delete();
             }
         }
-        public void OnSuspectEluded(List<CrimeEvent> CrimesAssociated,Vector3 PlaceLastSeen)
+        public void OnSuspectEluded(List<CrimeEvent> CrimesAssociated, Vector3 PlaceLastSeen)
         {
-            if (CrimesAssociated != null && PlaceLastSeen != Vector3.Zero && Player.PoliceResponse.HasPlayerBeenIdentified )
+            if (CrimesAssociated == null || PlaceLastSeen == Vector3.Zero ||
+                !Player.PoliceResponse.HasPlayerBeenIdentified)
+                return;
+
+            CurrentHistory = new BOLO(PlaceLastSeen, CrimesAssociated, Player.WantedLevel);
+            ClearLawEnforcementBOLO();
+
+            Mod.Player modPlayer = Player as Mod.Player;
+            if (modPlayer == null || modPlayer.CurrentDateTime == DateTime.MinValue)
+                return;
+
+            List<string> crimeNames = CrimesAssociated
+                .Where(x => x != null && x.AssociatedCrime != null)
+                .Select(x => x.AssociatedCrime.Name)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+            string description = crimeNames.Count == 0
+                ? "Identified suspect who previously eluded police."
+                : "Escaped suspect associated with: " + string.Join(", ", crimeNames);
+            string zoneID = modPlayer.CurrentLocation?.CurrentZone?.InternalGameName;
+
+            BOLORecord issuedBOLO = modPlayer.IssueLawEnforcementBOLO(
+                BOLOTargetType.Person,
+                description,
+                null,
+                null,
+                zoneID,
+                zoneID,
+                modPlayer.CurrentDateTime.AddDays(7),
+                "Person BOLO issued after an identified suspect eluded police. Foot identification only.");
+
+            LawEnforcementBOLOID = issuedBOLO?.ID;
+        }
+
+        private void ClearLawEnforcementBOLO()
+        {
+            Mod.Player modPlayer = Player as Mod.Player;
+            if (modPlayer != null && !string.IsNullOrWhiteSpace(LawEnforcementBOLOID))
             {
-                CurrentHistory = new BOLO(PlaceLastSeen,  CrimesAssociated, Player.WantedLevel);
+                modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.Cancel(
+                    modPlayer.LawEnforcementIntelligence,
+                    LawEnforcementBOLOID,
+                    Time?.CurrentDateTime ?? DateTime.MinValue);
             }
+            LawEnforcementBOLOID = null;
         }
         public void OnLostWanted()
         {
@@ -66,6 +109,7 @@ namespace LosSantosRED.lsr
         }
         public void Clear()
         {
+            ClearLawEnforcementBOLO();
             CurrentHistory = null;
             //EntryPoint.WriteToConsole($" PLAYER EVENT: Criminal History Clear");
         }
