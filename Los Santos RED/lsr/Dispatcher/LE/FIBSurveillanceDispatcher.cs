@@ -239,9 +239,9 @@ public class FIBSurveillanceDispatcher
             if (spawnedVehicle == null || spawnedDriver == null)
             {
                 foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null))
-                    if (ped.Pedestrian.Exists()) ped.Pedestrian.Delete();
+                    if (ped.Pedestrian != null && ped.Pedestrian.Exists()) ped.Pedestrian.Delete();
                 foreach (VehicleExt vehicle in spawnTask.CreatedVehicles.Where(x => x != null))
-                    if (vehicle.Vehicle.Exists()) vehicle.FullyDelete();
+                    if (vehicle.Vehicle != null && vehicle.Vehicle.Exists()) vehicle.FullyDelete();
                 continue;
             }
 
@@ -341,8 +341,15 @@ public class FIBSurveillanceDispatcher
                 team.Driver.Pedestrian.IsAlive;
             if (!entitiesExist)
             {
-                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(assignment, SurveillanceAssignmentState.LostContact, now);
+                if (assignment.State != SurveillanceAssignmentState.Disengaging &&
+                    assignment.State != SurveillanceAssignmentState.Compromised)
+                    (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                        assignment, SurveillanceAssignmentState.Disengaging, now);
+                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                    assignment, SurveillanceAssignmentState.Completed, now);
                 assignment.ReplacementRequired = true;
+                assignment.NextAssignmentAllowedAt = now.AddMinutes(5);
+                assignment.Notes = "Surveillance entities were lost; replacement is delayed to prevent repeated spawn attempts.";
                 CleanupTeam(team);
                 RuntimeTeams.Remove(pair.Key);
                 continue;
@@ -363,7 +370,8 @@ public class FIBSurveillanceDispatcher
                         team.Vehicle.Vehicle, 20f, 3);
                     team.DisengageCommandIssued = true;
                 }
-                if (distance >= settings.SurveillanceMaxDistance + 100f)
+                if (distance >= settings.SurveillanceMaxDistance + 100f ||
+                    Game.GameTime - team.LastFollowCommandAt >= 30000)
                 {
                     (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(assignment, SurveillanceAssignmentState.Completed, now);
                     CleanupTeam(team);
@@ -457,13 +465,13 @@ public class FIBSurveillanceDispatcher
         }
 
         string zoneID = Player.CurrentLocation?.CurrentZone?.InternalGameName;
-        bool recorded = intelligence.RecordSurveillanceSighting(now, assignment.TeamID, inVehicle,
+        intelligence.RecordSurveillanceSighting(now, assignment.TeamID, inVehicle,
             vehicleID, vehicleDescription, Player.Position.X, Player.Position.Y, Player.Position.Z,
             zoneID, zoneID);
-        if (recorded)
-        {
-            (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.RecordObservation(assignment, now, Player.Position.X, Player.Position.Y, Player.Position.Z);
-        }
+        // Refresh last-contact time on every real line-of-sight observation, even when the
+        // intelligence database deduplicates the stored observation record.
+        (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?
+            .RecordObservation(assignment, now, Player.Position.X, Player.Position.Y, Player.Position.Z);
     }
 
     private void IssueFollowCommand(RuntimeTeam team, LawEnforcementIntelligenceSettings settings)
