@@ -17,6 +17,7 @@ namespace LosSantosRED.lsr
                 !Enum.IsDefined(typeof(InvestigationAccessScope), requestedScope) ||
                 requestedAt == DateTime.MinValue ||
                 (requestExpiresAt.HasValue && requestExpiresAt.Value <= requestedAt)) return null;
+            DateTime requestExpiry = requestExpiresAt ?? requestedAt.AddDays(7);
             intelligence.Normalize();
             InvestigationRecord investigation = FindInvestigation(intelligence, investigationID);
             string owner = ResolveOwningAgency(intelligence, investigation);
@@ -34,7 +35,7 @@ namespace LosSantosRED.lsr
                 ID = Guid.NewGuid().ToString("N"), InvestigationID = investigationID,
                 RequestingAgencyID = requestingAgencyID, OwningAgencyID = owner,
                 RequestedScope = requestedScope, Purpose = purpose.Trim(), RequestedAt = requestedAt,
-                ExpiresAt = requestExpiresAt, Status = InvestigationAccessRequestStatus.Pending
+                ExpiresAt = requestExpiry, Status = InvestigationAccessRequestStatus.Pending
             };
             intelligence.AccessRequests.Add(request);
             AddAudit(intelligence, investigationID, request.ID, requestingAgencyID,
@@ -51,6 +52,7 @@ namespace LosSantosRED.lsr
                 string.IsNullOrWhiteSpace(decidingAgencyID) || decidedAt == DateTime.MinValue ||
                 (approve && !Enum.IsDefined(typeof(InvestigationAccessScope), approvedScope)) ||
                 (grantExpiresAt.HasValue && grantExpiresAt.Value <= decidedAt)) return false;
+            DateTime? effectiveGrantExpiry = approve ? (grantExpiresAt ?? decidedAt.AddDays(30)) : null;
             intelligence.Normalize();
             InvestigationAccessRequest request = intelligence.AccessRequests.FirstOrDefault(x =>
                 x != null && string.Equals(x.ID, requestID, StringComparison.OrdinalIgnoreCase));
@@ -81,7 +83,7 @@ namespace LosSantosRED.lsr
                 ID = Guid.NewGuid().ToString("N"), RequestID = request.ID,
                 InvestigationID = request.InvestigationID, GrantedToAgencyID = request.RequestingAgencyID,
                 GrantedByAgencyID = decidingAgencyID, Scope = approvedScope,
-                GrantedAt = decidedAt, ExpiresAt = grantExpiresAt
+                GrantedAt = decidedAt, ExpiresAt = effectiveGrantExpiry
             };
             intelligence.AccessGrants.Add(grant);
             request.Status = InvestigationAccessRequestStatus.Approved;
