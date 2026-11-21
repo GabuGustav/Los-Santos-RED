@@ -117,7 +117,7 @@ public class ResidenceOperationsDispatcher
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt))
             {
                 Residence raidResidence = FindResidence(arrestWarrant.SuspectedResidenceID);
-                if (raidResidence == null || !raidResidence.IsOwnedOrRented ||
+                if (raidResidence == null ||
                     !IsPlayerBelievedHome(intelligence, raidResidence, now))
                     continue;
 
@@ -633,8 +633,22 @@ public class ResidenceOperationsDispatcher
     {
         if (IsPlayerAtResidenceOrEntrance(residence))
             return true;
-        if (intelligence?.SurveillanceAssignments == null || residence == null ||
-            residence.EntrancePosition == Vector3.Zero || now == DateTime.MinValue)
+        if (intelligence == null || residence == null || now == DateTime.MinValue)
+            return false;
+
+        string residenceTargetID = "RESIDENCE:" +
+            residence.ResidenceID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        bool recentlyObservedAtResidence = intelligence.Observations.Any(x => x != null &&
+            x.IsKnownToPolice && x.IsVerified &&
+            x.TargetType == IntelligenceTargetType.Location &&
+            string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
+            (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
+            x.ObservedAt <= now && now - x.ObservedAt <= TimeSpan.FromMinutes(2));
+        if (recentlyObservedAtResidence)
+            return true;
+
+        if (intelligence.SurveillanceAssignments == null ||
+            residence.EntrancePosition == Vector3.Zero)
             return false;
 
         return intelligence.SurveillanceAssignments.Any(x => x != null &&
