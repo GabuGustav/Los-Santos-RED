@@ -109,10 +109,11 @@ namespace LosSantosRED.lsr
                         : WarrantPriority.Low;
 
             Residence suspectedResidence = (modPlayer.CurrentLocation?.CurrentInterior as ResidenceInterior)?.Residence;
-            if (suspectedResidence == null || (!suspectedResidence.IsOwned && !suspectedResidence.IsRented))
+            if (suspectedResidence == null || suspectedResidence.ResidenceID < 0 ||
+                (!suspectedResidence.IsOwned && !suspectedResidence.IsRented))
             {
                 suspectedResidence = modPlayer.Properties?.PropertyList?.OfType<Residence>()
-                    .FirstOrDefault(x => x != null && (x.IsOwned || x.IsRented));
+                    .FirstOrDefault(x => x != null && x.ResidenceID >= 0 && (x.IsOwned || x.IsRented));
             }
 
             string residenceID = suspectedResidence == null
