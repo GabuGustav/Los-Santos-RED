@@ -489,12 +489,27 @@ public class CopBrain : PedBrain
         Mod.Player observingPlayer = Player as Mod.Player;
         if (observingPlayer?.LawEnforcementIntelligence != null)
         {
+            string anprOfficerID = Cop.Pedestrian.Handle.ToString();
             observingPlayer.LawEnforcementIntelligence.RecordANPRRead(observingPlayer.CurrentDateTime,
-                Cop.Pedestrian.Handle.ToString(), visiblePlate, scannedVehicle.CarPlate?.RegistrationId,
+                anprOfficerID, visiblePlate, scannedVehicle.CarPlate?.RegistrationId,
                 scannedVehicle.FullName(false), scannedVehicle.Vehicle.Position.X,
                 scannedVehicle.Vehicle.Position.Y, scannedVehicle.Vehicle.Position.Z,
                 observingPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
                 observingPlayer.CurrentLocation?.CurrentZone?.InternalGameName);
+
+            bool playerIsRegisteredOwner = observingPlayer.VehicleOwnership?.OwnedVehicles != null &&
+                observingPlayer.VehicleOwnership.OwnedVehicles.Any(ownedVehicle =>
+                    ownedVehicle != null && ownedVehicle.Handle == scannedVehicle.Handle);
+            if (playerIsRegisteredOwner)
+            {
+                string registrationID = scannedVehicle.CarPlate?.RegistrationId;
+                string plate = scannedVehicle.CarPlate?.PlateNumber ?? scannedVehicle.Vehicle.LicensePlate;
+                string vehicleID = LawEnforcementIntelligence.GetVehicleIdentity(registrationID, plate);
+                observingPlayer.LawEnforcementIntelligence.RecordVehicleAssociation(
+                    observingPlayer.CurrentDateTime, vehicleID, VehicleAssociationType.RegisteredOwner,
+                    "ANPR:" + anprOfficerID, 0.98f, true,
+                    "ANPR registration lookup confirmed the player as the registered owner of this vehicle.");
+            }
         }
         ClearANPRScan();
 
