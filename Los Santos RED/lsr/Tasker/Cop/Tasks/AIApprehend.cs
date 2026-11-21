@@ -652,7 +652,7 @@ public class AIApprehend : ComplexTask
             return;
         }
 
-        VehicleExt stoppedVehicle = modPlayer.CurrentVehicle;
+        LSR.Vehicles.VehicleExt stoppedVehicle = modPlayer.CurrentVehicle;
         bool missingDriversLicense = !modPlayer.Licenses.HasDriversLicense;
         bool trafficViolation = modPlayer.Violations?.TrafficViolations?.IsViolatingAnyTrafficLaws == true;
         bool registrationIssue = stoppedVehicle != null && stoppedVehicle.Vehicle.Exists() &&
