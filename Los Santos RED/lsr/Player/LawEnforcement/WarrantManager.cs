@@ -74,6 +74,13 @@ namespace LosSantosRED.lsr
                 .FirstOrDefault();
         }
 
+        // Used when updating a case after a new sighting in another jurisdiction.
+        // Legal authority is global; agency awareness is still controlled by alert relays.
+        public WarrantRecord FindAnyActiveArrestWarrant(LawEnforcementIntelligence intelligence)
+        {
+            return GetActive(intelligence).FirstOrDefault(warrant => IsArrestAuthority(warrant.Type));
+        }
+
         // Dispatch or mutual-aid systems call this when another agency receives the alert.
         // The warrant itself is not copied or restricted; only the recipient's awareness changes.
         public bool DisseminateToAgency(LawEnforcementIntelligence intelligence, string warrantID, string receivingAgencyID)
