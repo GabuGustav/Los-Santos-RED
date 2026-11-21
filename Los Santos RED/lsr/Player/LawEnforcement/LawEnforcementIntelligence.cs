@@ -935,6 +935,9 @@ namespace LosSantosRED.lsr
                 if (warrant.LinkedCrimeIDs == null) warrant.LinkedCrimeIDs = new List<string>();
                 if (warrant.EvidenceObservationIDs == null) warrant.EvidenceObservationIDs = new List<string>();
                 if (warrant.KnownBusinessIDsAtIssuance == null) warrant.KnownBusinessIDsAtIssuance = new List<string>();
+                if (warrant.KnownToAgencyIDs == null) warrant.KnownToAgencyIDs = new List<string>();
+                if (!string.IsNullOrWhiteSpace(warrant.IssuingAgencyID) && !warrant.KnownToAgencyIDs.Contains(warrant.IssuingAgencyID, StringComparer.OrdinalIgnoreCase))
+                    warrant.KnownToAgencyIDs.Add(warrant.IssuingAgencyID);
                 warrant.ResidenceConfidence = NormalizeProbability(warrant.ResidenceConfidence);
             }
             foreach (BOLORecord bolo in BOLOs.Where(x => x != null))
@@ -943,6 +946,15 @@ namespace LosSantosRED.lsr
                 if (string.IsNullOrWhiteSpace(bolo.SubjectID)) bolo.SubjectID = SubjectID;
                 bolo.StopChanceInZone = NormalizeProbability(bolo.StopChanceInZone);
                 bolo.StopChanceOutsideZone = NormalizeProbability(bolo.StopChanceOutsideZone);
+                if (bolo.KnownToAgencyIDs == null) bolo.KnownToAgencyIDs = new List<string>();
+                if (!string.IsNullOrWhiteSpace(bolo.LinkedWarrantID))
+                {
+                    WarrantRecord linkedWarrant = Warrants.FirstOrDefault(x => x != null && x.ID == bolo.LinkedWarrantID);
+                    if (linkedWarrant != null && linkedWarrant.KnownToAgencyIDs != null)
+                        foreach (string agencyID in linkedWarrant.KnownToAgencyIDs)
+                            if (!string.IsNullOrWhiteSpace(agencyID) && !bolo.KnownToAgencyIDs.Contains(agencyID, StringComparer.OrdinalIgnoreCase))
+                                bolo.KnownToAgencyIDs.Add(agencyID);
+                }
             }
             foreach (IntelligenceObservation observation in Observations.Where(x => x != null))
             {
@@ -1142,6 +1154,8 @@ namespace LosSantosRED.lsr
         public float ResidenceConfidence { get; set; }
         public string SuspectedResidenceID { get; set; }
         public string ResolutionNotes { get; set; }
+        // Agencies that have received this alert. Legal validity is independent of dissemination.
+        public List<string> KnownToAgencyIDs { get; set; } = new List<string>();
 
         public WarrantRecord Copy()
         {
@@ -1162,7 +1176,8 @@ namespace LosSantosRED.lsr
                 KnownBusinessIDsAtIssuance = KnownBusinessIDsAtIssuance == null ? new List<string>() : new List<string>(KnownBusinessIDsAtIssuance),
                 ResidenceConfidence = ResidenceConfidence,
                 SuspectedResidenceID = SuspectedResidenceID,
-                ResolutionNotes = ResolutionNotes
+                ResolutionNotes = ResolutionNotes,
+                KnownToAgencyIDs = KnownToAgencyIDs == null ? new List<string>() : new List<string>(KnownToAgencyIDs)
             };
         }
     }
@@ -1199,6 +1214,8 @@ namespace LosSantosRED.lsr
         public float StopChanceOutsideZone { get; set; }
         public string Notes { get; set; }
         public string LinkedWarrantID { get; set; }
+        // Agencies that have received this BOLO; an alert is not globally visible by default.
+        public List<string> KnownToAgencyIDs { get; set; } = new List<string>();
 
         public BOLORecord Copy()
         {
@@ -1210,6 +1227,7 @@ namespace LosSantosRED.lsr
                 Status = Status,
                 Description = Description,
                 LinkedWarrantID = LinkedWarrantID,
+                KnownToAgencyIDs = KnownToAgencyIDs == null ? new List<string>() : new List<string>(KnownToAgencyIDs),
                 VehicleModel = VehicleModel,
                 PlateNumber = PlateNumber,
                 ZoneID = ZoneID,
