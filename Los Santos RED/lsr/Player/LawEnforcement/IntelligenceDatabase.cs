@@ -48,7 +48,8 @@ namespace LosSantosRED.lsr
             IntelligenceSource source, string sourceID, float confidence, DateTime recordedAt, string notes = null)
         {
             if (intelligence == null || intelligence.Observations == null ||
-                string.IsNullOrWhiteSpace(observationID) || recordedAt == DateTime.MinValue) return false;
+                string.IsNullOrWhiteSpace(observationID) || recordedAt == DateTime.MinValue ||
+                source == IntelligenceSource.Unknown || string.IsNullOrWhiteSpace(sourceID)) return false;
             IntelligenceObservation observation = intelligence.Observations.FirstOrDefault(x =>
                 x != null && string.Equals(x.ID, observationID, StringComparison.OrdinalIgnoreCase));
             if (observation == null || recordedAt < observation.ObservedAt) return false;
@@ -59,6 +60,14 @@ namespace LosSantosRED.lsr
                 ? 0f : Math.Max(0f, Math.Min(1f, confidence));
             observation.Notes = string.IsNullOrWhiteSpace(notes) ? observation.Notes : notes;
             observation.IsVerified = true;
+            foreach (WarrantRecord warrant in intelligence.Warrants.Where(x => x != null &&
+                x.Status == WarrantStatus.Active && observation.ObservedAt >= x.IssuedAt))
+            {
+                if (warrant.EvidenceObservationIDs == null)
+                    warrant.EvidenceObservationIDs = new List<string>();
+                if (!warrant.EvidenceObservationIDs.Contains(observation.ID))
+                    warrant.EvidenceObservationIDs.Add(observation.ID);
+            }
             intelligence.LastUpdatedAt = recordedAt;
             return true;
         }
