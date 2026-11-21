@@ -205,15 +205,19 @@ namespace LosSantosRED.lsr
             // Do not run against a clock that has moved backwards (for example, a save load).
             if (LastUpdateAt != DateTime.MinValue && currentTime < LastUpdateAt)
                 LastUpdateAt = DateTime.MinValue;
+
+            // BOLO expiry is a record-lifecycle concern, not investigation processing.
+            // Run it on every intelligence tick, even when background investigation is
+            // throttled or BOLO generation/response has been disabled in settings.
+            intelligence.Normalize();
+            BOLOManager.Update(intelligence, currentTime);
+
             if (LastUpdateAt != DateTime.MinValue &&
                 currentTime - LastUpdateAt < TimeSpan.FromMilliseconds(settings.InvestigationUpdateInterval))
                 return;
 
-            intelligence.Normalize();
             if (settings.EnableWarrants)
                 WarrantManager.UpdateExpirations(intelligence, currentTime, settings);
-            if (settings.EnableBOLOSystem)
-                BOLOManager.Update(intelligence, currentTime);
             ProcessAlertDisseminations(intelligence, currentTime);
             AgencyIntelligenceAccessManager.ProcessExpirations(intelligence, currentTime);
 
