@@ -115,8 +115,15 @@ namespace LosSantosRED.lsr
                 return;
             intelligence.Normalize();
 
-            WarrantRecord warrant = modPlayer.LawEnforcementIntelligenceManager?.WarrantManager?.FindActive(
-                intelligence, modPlayer.AssignedAgency?.ID, jurisdictionID);
+            LawEnforcementIntelligenceManager intelligenceManager =
+                modPlayer.LawEnforcementIntelligenceManager;
+            WarrantManager warrantManager = intelligenceManager?.WarrantManager;
+
+            // Reuse the same active arrest authority even after the subject crosses a
+            // jurisdiction boundary. Discovery remains agency-scoped; this lookup is only
+            // for updating the persistent case and preventing duplicate warrants.
+            WarrantRecord warrant = warrantManager?.FindAnyActiveArrestWarrant(intelligence);
+            bool reusedExistingWarrant = warrant != null;
             if (warrant == null)
             {
                 warrant = modPlayer.IssueLawEnforcementWarrant(
@@ -142,6 +149,24 @@ namespace LosSantosRED.lsr
 
             if (warrant == null)
                 return;
+
+            // A new jurisdiction does not automatically inherit knowledge of the warrant.
+            // Queue the configured delayed relay instead of granting immediate awareness.
+            string receivingAgencyID = modPlayer.AssignedAgency?.ID;
+            string sendingAgencyID = warrant.IssuingAgencyID ??
+                warrant.KnownToAgencyIDs?.FirstOrDefault();
+            LawEnforcementIntelligenceSettings intelligenceSettings =
+                Settings?.SettingsManager?.LawEnforcementIntelligenceSettings;
+            if (reusedExistingWarrant && !string.IsNullOrWhiteSpace(receivingAgencyID) &&
+                !string.Equals(receivingAgencyID, sendingAgencyID, StringComparison.OrdinalIgnoreCase) &&
+                (warrant.KnownToAgencyIDs == null ||
+                 !warrant.KnownToAgencyIDs.Contains(receivingAgencyID, StringComparer.OrdinalIgnoreCase)))
+            {
+                intelligenceManager?.ScheduleAlertDissemination(intelligence,
+                    IntelligenceAlertType.Warrant, warrant.ID, sendingAgencyID,
+                    receivingAgencyID, modPlayer.CurrentDateTime, intelligenceSettings,
+                    false, "Subject was identified again in another jurisdiction.");
+            }
             if (warrant.EvidenceObservationIDs == null)
                 warrant.EvidenceObservationIDs = new List<string>();
             foreach (CrimeEvent crimeEvent in identifiedCrimes)
