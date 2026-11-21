@@ -114,6 +114,16 @@ public class CopBrain : PedBrain
                             modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
                             modPlayer.CurrentLocation?.CurrentZone?.InternalGameName);
                     }
+                    else if (timeSinceDrivingObservation <= 30000 && distanceFromVehicle <= 15f)
+                    {
+                        modPlayer.LawEnforcementIntelligence.RecordSuspectedVehicleAssociation(
+                            modPlayer.CurrentDateTime, Cop.Pedestrian.Handle.ToString(),
+                            LastObservedDrivingVehicleID, LastObservedDrivingVehicleDescription,
+                            LastObservedDrivingVehiclePosition.X, LastObservedDrivingVehiclePosition.Y,
+                            LastObservedDrivingVehiclePosition.Z,
+                            modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
+                            modPlayer.CurrentLocation?.CurrentZone?.InternalGameName);
+                    }
                     LastObservedPlayerWasDriving = false;
                     LastObservedDrivingVehicleID = null;
                     LastObservedDrivingVehicleDescription = null;
