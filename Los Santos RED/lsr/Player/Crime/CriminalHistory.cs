@@ -171,10 +171,8 @@ namespace LosSantosRED.lsr
                 string crimeName = crimeEvent.AssociatedCrime.Name;
                 foreach (IntelligenceObservation observation in intelligence.Observations.Where(x =>
                     x != null && x.IsKnownToPolice && x.ObservedAt <= modPlayer.CurrentDateTime &&
-                    (string.Equals(x.TargetDescription, "Player suspected of " + crimeName,
-                        StringComparison.OrdinalIgnoreCase) ||
-                     (!string.IsNullOrWhiteSpace(x.Notes) &&
-                      x.Notes.IndexOf(crimeName, StringComparison.OrdinalIgnoreCase) >= 0))))
+                    string.Equals(x.TargetDescription, "Player suspected of " + crimeName,
+                        StringComparison.OrdinalIgnoreCase)))
                 {
                     if (!string.IsNullOrWhiteSpace(observation.ID) &&
                         !warrant.EvidenceObservationIDs.Contains(observation.ID))
