@@ -69,15 +69,9 @@ namespace LosSantosRED.lsr
 
         public WarrantRecord FindActive(LawEnforcementIntelligence intelligence, string agencyID, string jurisdictionID)
         {
-            if (intelligence == null || intelligence.Warrants == null) return null;
-            // A warrant remains legally valid across jurisdictions, but an officer must first
-            // belong to an agency that received the alert or be operating in its issuing jurisdiction.
-            if (string.IsNullOrWhiteSpace(agencyID)) return null;
-            return intelligence.Warrants.Where(x => x != null && x.Status == WarrantStatus.Active &&
-                    IsArrestAuthority(x.Type) &&
-                    ((x.KnownToAgencyIDs != null && x.KnownToAgencyIDs.Contains(agencyID, StringComparer.OrdinalIgnoreCase)) ||
-                     (!string.IsNullOrWhiteSpace(jurisdictionID) && string.Equals(x.JurisdictionID, jurisdictionID, StringComparison.OrdinalIgnoreCase))))
-                .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt).FirstOrDefault();
+            return GetActiveForAgency(intelligence, agencyID, jurisdictionID)
+                .Where(warrant => IsArrestAuthority(warrant.Type))
+                .FirstOrDefault();
         }
 
         // Dispatch or mutual-aid systems call this when another agency receives the alert.
