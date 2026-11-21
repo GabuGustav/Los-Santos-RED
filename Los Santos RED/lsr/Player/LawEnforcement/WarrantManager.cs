@@ -122,6 +122,10 @@ namespace LosSantosRED.lsr
         {
             if (intelligence == null || intelligence.Warrants == null || currentTime == DateTime.MinValue)
                 return;
+
+            // Expire BOLOs first so a suspended alert cannot be reactivated after its deadline.
+            intelligence.UpdateExpirations(currentTime);
+
             foreach (WarrantRecord warrant in intelligence.Warrants.Where(x => x != null &&
                 (x.Status == WarrantStatus.Active || x.Status == WarrantStatus.Suspended) &&
                 x.ExpiresAt.HasValue && currentTime >= x.ExpiresAt.Value).ToList())
