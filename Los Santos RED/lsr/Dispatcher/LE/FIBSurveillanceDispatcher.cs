@@ -503,6 +503,17 @@ public class FIBSurveillanceDispatcher
         // intelligence database deduplicates the stored observation record.
         (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.RecordObservation(
             assignment, now, Player.Position.X, Player.Position.Y, Player.Position.Z);
+
+        Mod.Player modPlayer = Player as Mod.Player;
+        Residence observedResidence = (modPlayer?.CurrentLocation?.CurrentInterior as ResidenceInterior)?.Residence;
+        if (observedResidence != null && observedResidence.ResidenceID >= 0)
+        {
+            intelligence.RecordResidenceObservation(now, IntelligenceSource.Surveillance,
+                "FIB_SURVEILLANCE:" + assignment.TeamID, observedResidence.ResidenceID.ToString(),
+                observedResidence.Name, Player.Position.X, Player.Position.Y, Player.Position.Z,
+                modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
+                modPlayer.CurrentLocation?.CurrentZone?.InternalGameName, 0.95f);
+        }
     }
 
     private void IssueFollowCommand(RuntimeTeam team, LawEnforcementIntelligenceSettings settings)
