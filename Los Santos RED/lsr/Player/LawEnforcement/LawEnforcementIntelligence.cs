@@ -164,7 +164,7 @@ namespace LosSantosRED.lsr
                 SourceID = sourceID,
                 EntityID = officerID,
                 IsKnownToPolice = true,
-                IsVerified = true,
+                IsVerified = false,
                 Confidence = 0.65f,
                 PositionX = x,
                 PositionY = y,
