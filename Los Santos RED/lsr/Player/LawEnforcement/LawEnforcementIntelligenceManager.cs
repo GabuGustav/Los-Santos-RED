@@ -211,13 +211,13 @@ namespace LosSantosRED.lsr
             // throttled or BOLO generation/response has been disabled in settings.
             intelligence.Normalize();
             BOLOManager.Update(intelligence, currentTime);
+            if (settings.EnableWarrants)
+                WarrantManager.UpdateExpirations(intelligence, currentTime, settings);
 
             if (LastUpdateAt != DateTime.MinValue &&
                 currentTime - LastUpdateAt < TimeSpan.FromMilliseconds(settings.InvestigationUpdateInterval))
                 return;
 
-            if (settings.EnableWarrants)
-                WarrantManager.UpdateExpirations(intelligence, currentTime, settings);
             ProcessAlertDisseminations(intelligence, currentTime);
             AgencyIntelligenceAccessManager.ProcessExpirations(intelligence, currentTime);
 
