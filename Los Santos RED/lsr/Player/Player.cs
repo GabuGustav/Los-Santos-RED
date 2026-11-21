@@ -2119,23 +2119,19 @@ namespace Mod
         }
         private void ResolveWarrantApprehension()
         {
-            IEnumerable<WarrantRecord> activeWarrants =
-                LawEnforcementIntelligenceManager?.WarrantManager?.GetActive(LawEnforcementIntelligence);
-            if (activeWarrants != null)
+            // Only serve the warrant that the responding officer actually confirmed.
+            // Arresting the player must not silently resolve every warrant in the global
+            // intelligence record, including alerts this agency has never received.
+            if (!string.IsNullOrWhiteSpace(WarrantApprehensionID) &&
+                LawEnforcementIntelligenceManager?.WarrantManager != null)
             {
-                foreach (WarrantRecord warrant in activeWarrants
-                    .Where(x => x != null &&
-                        LawEnforcementIntelligenceManager.WarrantManager.CanAuthorizeArrest(x))
-                    .ToList())
+                WarrantRecord warrant = LawEnforcementIntelligence?.Warrants?.FirstOrDefault(x =>
+                    x != null && string.Equals(x.ID, WarrantApprehensionID, StringComparison.OrdinalIgnoreCase));
+                if (LawEnforcementIntelligenceManager.WarrantManager.CanAuthorizeArrest(warrant))
                 {
-                    LawEnforcementIntelligence?.ResolveWarrant(warrant.ID, WarrantStatus.Served,
-                        CurrentDateTime, "Subject arrested");
+                    LawEnforcementIntelligence.ResolveWarrant(warrant.ID, WarrantStatus.Served,
+                        CurrentDateTime, "Subject arrested under the confirmed warrant.");
                 }
-            }
-            else if (!string.IsNullOrWhiteSpace(WarrantApprehensionID))
-            {
-                LawEnforcementIntelligence?.ResolveWarrant(WarrantApprehensionID, WarrantStatus.Served,
-                    CurrentDateTime, "Subject arrested");
             }
             WarrantApprehensionID = null;
         }
