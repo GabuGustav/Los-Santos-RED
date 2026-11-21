@@ -582,8 +582,19 @@ public class GameLocation : ILocationDispatchable
         }
         else
         {
+            RecordSuccessfulBusinessVisit();
             StandardInteract(null, false);
         }
+    }
+
+    public void RecordSuccessfulBusinessVisit()
+    {
+        if (!(this is Business)) return;
+        Mod.Player modPlayer = Player as Mod.Player;
+        if (modPlayer?.LawEnforcementIntelligence == null) return;
+        modPlayer.LawEnforcementIntelligence.RecordBusinessVisit(
+            modPlayer.CurrentDateTime, Name,
+            EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z);
     }
     public virtual void StandardInteract(LocationCamera locationCamera, bool isInside)
     {
