@@ -608,6 +608,7 @@
     <Compile Include="lsr\Player\Cellphone\Interactions\VehicleExporterInteraction.cs" />
     <Compile Include="lsr\Player\LawEnforcement\LawEnforcementIntelligence.cs" />
     <Compile Include="lsr\Player\LawEnforcement\LawEnforcementIntelligenceManager.cs" />
+    <Compile Include="lsr\Player\LawEnforcement\AgencyIntelligenceAccessManager.cs" />
     <Compile Include="lsr\Player\LawEnforcement\WarrantManager.cs" />
     <Compile Include="lsr\Player\LawEnforcement\BOLOManager.cs" />
     <Compile Include="lsr\Player\LawEnforcement\IntelligenceDatabase.cs" />
