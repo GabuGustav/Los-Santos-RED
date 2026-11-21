@@ -209,7 +209,11 @@ namespace Mod
                 Settings?.SettingsManager?.LawEnforcementIntelligenceSettings);
         }
 
-        private string WarrantApprehensionID { get; set; }
+        // Tracks only warrants confirmed by officers currently handling this apprehension.
+        // Multiple officers may independently confirm the same warrant.
+        private Dictionary<string, HashSet<string>> PendingWarrantApprehensions { get; } =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
         // A player's warrant status is global; an agency's awareness is a separate concern.
         // Keep the agency-scoped lookup available for dispatch and operational decisions.
         public WarrantRecord ActiveArrestWarrant => LawEnforcementIntelligenceManager?.WarrantManager?.GetActive(LawEnforcementIntelligence)
@@ -218,12 +222,31 @@ namespace Mod
             ?.FindActive(LawEnforcementIntelligence, AssignedAgency?.ID, null);
         public bool HasActiveArrestWarrant => ActiveArrestWarrant != null;
 
-        public void BeginWarrantApprehension(string warrantID)
+        public void BeginWarrantApprehension(string warrantID, string officerID)
         {
+            if (string.IsNullOrWhiteSpace(warrantID) || string.IsNullOrWhiteSpace(officerID))
+                return;
             WarrantRecord warrant = LawEnforcementIntelligence?.Warrants?.FirstOrDefault(x =>
-                x != null && x.ID == warrantID &&
+                x != null && string.Equals(x.ID, warrantID, StringComparison.OrdinalIgnoreCase) &&
                 LawEnforcementIntelligenceManager?.WarrantManager?.CanAuthorizeArrest(x) == true);
-            if (warrant != null) WarrantApprehensionID = warrant.ID;
+            if (warrant == null)
+                return;
+            if (!PendingWarrantApprehensions.TryGetValue(warrant.ID, out HashSet<string> officers))
+            {
+                officers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                PendingWarrantApprehensions[warrant.ID] = officers;
+            }
+            officers.Add(officerID);
+        }
+
+        public void CancelWarrantApprehension(string warrantID, string officerID)
+        {
+            if (string.IsNullOrWhiteSpace(warrantID) || string.IsNullOrWhiteSpace(officerID) ||
+                !PendingWarrantApprehensions.TryGetValue(warrantID, out HashSet<string> officers))
+                return;
+            officers.Remove(officerID);
+            if (officers.Count == 0)
+                PendingWarrantApprehensions.Remove(warrantID);
         }
 
         public WarrantRecord IssueLawEnforcementWarrant(WarrantType type, WarrantPriority priority, string issuingAgencyID,
@@ -2119,21 +2142,22 @@ namespace Mod
         }
         private void ResolveWarrantApprehension()
         {
-            // Only serve the warrant that the responding officer actually confirmed.
-            // Arresting the player must not silently resolve every warrant in the global
-            // intelligence record, including alerts this agency has never received.
-            if (!string.IsNullOrWhiteSpace(WarrantApprehensionID) &&
-                LawEnforcementIntelligenceManager?.WarrantManager != null)
+            // Serve only warrants confirmed by officers actively handling this arrest.
+            // Unrelated alerts elsewhere in the global intelligence record remain active.
+            if (LawEnforcementIntelligenceManager?.WarrantManager != null)
             {
-                WarrantRecord warrant = LawEnforcementIntelligence?.Warrants?.FirstOrDefault(x =>
-                    x != null && string.Equals(x.ID, WarrantApprehensionID, StringComparison.OrdinalIgnoreCase));
-                if (LawEnforcementIntelligenceManager.WarrantManager.CanAuthorizeArrest(warrant))
+                foreach (string warrantID in PendingWarrantApprehensions.Keys.ToList())
                 {
-                    LawEnforcementIntelligence.ResolveWarrant(warrant.ID, WarrantStatus.Served,
-                        CurrentDateTime, "Subject arrested under the confirmed warrant.");
+                    WarrantRecord warrant = LawEnforcementIntelligence?.Warrants?.FirstOrDefault(x =>
+                        x != null && string.Equals(x.ID, warrantID, StringComparison.OrdinalIgnoreCase));
+                    if (LawEnforcementIntelligenceManager.WarrantManager.CanAuthorizeArrest(warrant))
+                    {
+                        LawEnforcementIntelligence.ResolveWarrant(warrant.ID, WarrantStatus.Served,
+                            CurrentDateTime, "Subject arrested under a confirmed warrant.");
+                    }
                 }
             }
-            WarrantApprehensionID = null;
+            PendingWarrantApprehensions.Clear();
         }
 
         public void Arrest()
