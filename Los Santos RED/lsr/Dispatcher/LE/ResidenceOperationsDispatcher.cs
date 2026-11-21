@@ -638,7 +638,8 @@ public class ResidenceOperationsDispatcher
 
         string residenceTargetID = "RESIDENCE:" +
             residence.ResidenceID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        bool recentlyObservedAtResidence = intelligence.Observations.Any(x => x != null &&
+        bool recentlyObservedAtResidence = intelligence.Observations != null &&
+            intelligence.Observations.Any(x => x != null &&
             x.IsKnownToPolice && x.IsVerified &&
             x.TargetType == IntelligenceTargetType.Location &&
             string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
