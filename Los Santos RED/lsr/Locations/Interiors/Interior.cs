@@ -420,17 +420,8 @@ public class Interior
             Player.InteriorManager.OnTeleportedInside(InteractableLocation);
             Player.GroupManager.OnTeleportedInside(this);
 
-            // Record business visits only after the player has actually been teleported inside.
-            // The observation remains private until independently corroborated by police.
-            Mod.Player modPlayer = Player as Mod.Player;
-            if (InteractableLocation is Business && modPlayer?.LawEnforcementIntelligence != null)
-            {
-                modPlayer.LawEnforcementIntelligence.RecordBusinessVisit(
-                    modPlayer.CurrentDateTime, InteractableLocation.Name,
-                    InteractableLocation.EntrancePosition.X,
-                    InteractableLocation.EntrancePosition.Y,
-                    InteractableLocation.EntrancePosition.Z);
-            }
+            // Record the visit only after the interior teleport has succeeded.
+            InteractableLocation.RecordSuccessfulBusinessVisit();
             GameFiber.Sleep(500);
             RemoveExistingPeds();
             if(VendorLocations != null && VendorLocations.Any())
