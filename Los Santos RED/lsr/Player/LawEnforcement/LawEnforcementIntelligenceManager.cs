@@ -16,6 +16,7 @@ namespace LosSantosRED.lsr
         public InvestigationManager InvestigationManager { get; private set; } = new InvestigationManager();
         public SurveillanceAssignmentManager SurveillanceAssignmentManager { get; private set; } = new SurveillanceAssignmentManager();
         public PoliceOperationsManager PoliceOperationsManager { get; private set; } = new PoliceOperationsManager();
+        public AgencyIntelligenceAccessManager AgencyIntelligenceAccessManager { get; private set; } = new AgencyIntelligenceAccessManager();
 
         public string GetDebugSummary(LawEnforcementIntelligence intelligence)
         {
@@ -31,15 +32,18 @@ namespace LosSantosRED.lsr
                 x.Stage != PoliceOperationStage.Completed && x.Stage != PoliceOperationStage.Aborted);
             int pendingRelays = intelligence.AlertDisseminations.Count(x => x != null &&
                 x.Status == AlertDisseminationStatus.Pending);
+            int pendingAccessRequests = intelligence.AccessRequests.Count(x => x != null &&
+                x.Status == InvestigationAccessRequestStatus.Pending);
+            int activeAccessGrants = intelligence.AccessGrants.Count(x => x != null && !x.IsRevoked);
             InvestigationRecord current = intelligence.Investigations
                 .Where(x => x != null && x.Stage != InvestigationStage.Closed &&
                     x.Stage != InvestigationStage.Suspended)
                 .OrderByDescending(x => x.HeatLevel).FirstOrDefault();
             return string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                "LE Intelligence | Observations: {0} (Police-known: {1}) | Investigations: {2} | Stage: {3} | Warrants: {4} | BOLOs: {5} | FIB teams: {6} | Operations: {7} | Pending alert relays: {8}",
+                "LE Intelligence | Observations: {0} (Police-known: {1}) | Investigations: {2} | Stage: {3} | Warrants: {4} | BOLOs: {5} | FIB teams: {6} | Operations: {7} | Pending alert relays: {8} | Access requests: {9} | Active access grants: {10}",
                 intelligence.Observations.Count, policeObservations, intelligence.Investigations.Count,
                 current == null ? "None" : current.Stage.ToString(), activeWarrants, activeBOLOs,
-                activeSurveillance, activeOperations, pendingRelays);
+                activeSurveillance, activeOperations, pendingRelays, pendingAccessRequests, activeAccessGrants);
         }
 
         public bool TryAssignSurveillance(LawEnforcementIntelligence intelligence, string investigationID,
@@ -211,6 +215,7 @@ namespace LosSantosRED.lsr
             if (settings.EnableBOLOSystem)
                 BOLOManager.Update(intelligence, currentTime);
             ProcessAlertDisseminations(intelligence, currentTime);
+            AgencyIntelligenceAccessManager.ProcessExpirations(intelligence, currentTime);
 
             if (settings.EnableBackgroundInvestigation)
             {
@@ -293,6 +298,17 @@ namespace LosSantosRED.lsr
                 intelligence.AlertDisseminations.RemoveAll(x => x == null ||
                     (x.Status != AlertDisseminationStatus.Pending &&
                      x.ScheduledAt != DateTime.MinValue && x.ScheduledAt < cutoff));
+            if (intelligence.AccessRequests != null)
+                intelligence.AccessRequests.RemoveAll(x => x == null ||
+                    (x.Status != InvestigationAccessRequestStatus.Pending &&
+                     x.RequestedAt != DateTime.MinValue && x.RequestedAt < cutoff));
+            if (intelligence.AccessGrants != null)
+                intelligence.AccessGrants.RemoveAll(x => x == null ||
+                    ((x.IsRevoked || (x.ExpiresAt.HasValue && x.ExpiresAt.Value <= currentTime)) &&
+                     x.GrantedAt != DateTime.MinValue && x.GrantedAt < cutoff));
+            if (intelligence.AccessAuditEntries != null)
+                intelligence.AccessAuditEntries.RemoveAll(x => x == null ||
+                    (x.OccurredAt != DateTime.MinValue && x.OccurredAt < cutoff));
         }
 
         public void ResetClock()
