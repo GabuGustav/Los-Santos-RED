@@ -565,7 +565,7 @@ public class AIApprehend : ComplexTask
                  CurrentTrafficStopStage == TrafficStopStage.Refused) &&
                 ((Player.IsInVehicle && Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
                   Player.CurrentVehicle.Vehicle.Speed >= 3.0f) ||
-                 (!Player.IsInVehicle && Player.Position.DistanceTo2D(OtherTarget.Pedestrian.Position) >= 7.0f)))
+                 (!Player.IsInVehicle && Ped.Pedestrian.Position.DistanceTo2D(Player.Position) >= 7.0f)))
                 BeginTrafficStopEvasion(modPlayer);
         }
         else
