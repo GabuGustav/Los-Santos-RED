@@ -112,6 +112,39 @@ namespace LosSantosRED.lsr
             return recorded;
         }
 
+        public bool RecordPreviouslyDrivenVehicle(DateTime observedAt, string officerID,
+            string vehicleID, string vehicleDescription, float x, float y, float z,
+            string locationID = null, string locationName = null)
+        {
+            if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(vehicleID))
+                return false;
+            string sourceID = "COP:" + (officerID ?? "UNKNOWN");
+            const string notes = "Officer directly observed the player exit this vehicle.";
+            bool recorded = RecordObservation(new IntelligenceObservation
+            {
+                ObservedAt = observedAt,
+                Source = IntelligenceSource.PatrolOfficer,
+                EvidenceType = IntelligenceEvidenceType.VisualSighting,
+                TargetType = IntelligenceTargetType.Vehicle,
+                TargetID = vehicleID,
+                TargetDescription = vehicleDescription,
+                SourceID = sourceID,
+                EntityID = officerID,
+                IsKnownToPolice = true,
+                IsVerified = true,
+                Confidence = 0.98f,
+                PositionX = x,
+                PositionY = y,
+                PositionZ = z,
+                LocationID = locationID,
+                LocationName = locationName,
+                Notes = notes
+            });
+            RecordVehicleAssociation(observedAt, vehicleID, VehicleAssociationType.PreviouslyDriven,
+                sourceID, 0.98f, true, notes);
+            return recorded;
+        }
+
         private bool RecordOrRefreshSurveillanceObservation(IntelligenceObservation observation)
         {
             if (observation == null || observation.ObservedAt == DateTime.MinValue)
