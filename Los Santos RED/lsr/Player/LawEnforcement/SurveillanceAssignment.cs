@@ -107,6 +107,7 @@ namespace LosSantosRED.lsr
                         next == SurveillanceAssignmentState.Compromised;
                 case SurveillanceAssignmentState.StationaryWatch:
                     return next == SurveillanceAssignmentState.Following ||
+                        next == SurveillanceAssignmentState.LostContact ||
                         next == SurveillanceAssignmentState.Reporting ||
                         next == SurveillanceAssignmentState.Disengaging ||
                         next == SurveillanceAssignmentState.Compromised;
