@@ -302,8 +302,8 @@ namespace LosSantosRED.lsr
                         previous.ID = Guid.NewGuid().ToString("N");
                     previous.ObservedAt = observation.ObservedAt;
                     previous.TargetDescription = observation.TargetDescription;
-                    previous.IsKnownToPolice = true;
-                    previous.IsVerified = true;
+                    previous.IsKnownToPolice = observation.IsKnownToPolice;
+                    previous.IsVerified = observation.IsVerified;
                     previous.Confidence = NormalizeProbability(observation.Confidence);
                     previous.PositionX = observation.PositionX;
                     previous.PositionY = observation.PositionY;
@@ -311,7 +311,7 @@ namespace LosSantosRED.lsr
                     previous.LocationID = observation.LocationID;
                     previous.LocationName = observation.LocationName;
                     previous.Notes = observation.Notes;
-                    if (Warrants != null)
+                    if (observation.IsKnownToPolice && observation.IsVerified && Warrants != null)
                     {
                         foreach (WarrantRecord warrant in Warrants.Where(x => x != null &&
                             x.Status == WarrantStatus.Active && observation.ObservedAt >= x.IssuedAt))
@@ -744,7 +744,7 @@ namespace LosSantosRED.lsr
                 observation.ObservedAt - previous.ObservedAt < TimeSpan.FromMinutes(5)) return false;
 
             Observations.Add(observation);
-            if (observation.IsKnownToPolice)
+            if (observation.IsKnownToPolice && observation.IsVerified)
             {
                 foreach (WarrantRecord w in Warrants.Where(x => x != null && x.Status == WarrantStatus.Active && observation.ObservedAt >= x.IssuedAt))
                 {
