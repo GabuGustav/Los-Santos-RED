@@ -50,6 +50,23 @@ public class ResidenceOperationsDispatcher
         PlacesOfInterest = placesOfInterest;
     }
 
+    private Mod.Player GetModPlayer()
+    {
+        return Player as Mod.Player;
+    }
+
+    private PoliceOperationsManager GetOperationsManager(LawEnforcementIntelligence intelligence)
+    {
+        Mod.Player modPlayer = GetModPlayer();
+        if (modPlayer == null || !object.ReferenceEquals(modPlayer.LawEnforcementIntelligence, intelligence))
+            return null;
+        return modPlayer.LawEnforcementIntelligenceManager?.PoliceOperationsManager;
+    }
+
+    private bool PlayerIsAttemptingToSurrender => GetModPlayer()?.IsAttemptingToSurrender == true;
+    private bool PlayerIsDangerouslyArmed => GetModPlayer()?.IsDangerouslyArmed == true;
+    private bool PlayerIsBusted => GetModPlayer()?.IsBusted == true;
+
     public void Update()
     {
         Mod.Player modPlayer = Player as Mod.Player;
@@ -100,7 +117,7 @@ public class ResidenceOperationsDispatcher
     private void TryPlanOperation(LawEnforcementIntelligence intelligence, DateTime now,
         LawEnforcementIntelligenceSettings settings)
     {
-        PoliceOperationsManager operationsManager = modPlayerOperations(intelligence);
+        PoliceOperationsManager operationsManager = GetOperationsManager(intelligence);
         if (operationsManager == null ||
             intelligence.PoliceOperations.Any(x => x != null &&
                 x.Stage != PoliceOperationStage.Completed && x.Stage != PoliceOperationStage.Aborted))
@@ -176,7 +193,7 @@ public class ResidenceOperationsDispatcher
                 Residence residence = FindResidence(operation.ResidenceID);
                 if (residence == null)
                 {
-                    modPlayerOperations(intelligence)?.Abort(intelligence, operation.ID, now,
+                    GetOperationsManager(intelligence)?.Abort(intelligence, operation.ID, now,
                         "The warrant residence could not be resolved in the current world data.");
                     continue;
                 }
@@ -206,7 +223,7 @@ public class ResidenceOperationsDispatcher
     private void UpdateArrestRaid(LawEnforcementIntelligence intelligence,
         PoliceOperationRecord operation, RuntimeOperation runtime, DateTime now)
     {
-        PoliceOperationsManager manager = modPlayerOperations(intelligence);
+        PoliceOperationsManager manager = GetOperationsManager(intelligence);
         if (manager == null || runtime.Residence == null)
             return;
 
@@ -240,10 +257,10 @@ public class ResidenceOperationsDispatcher
                 return;
             }
 
-            if (Player.IsAttemptingToSurrender)
+            if (PlayerIsAttemptingToSurrender)
                 manager.RecordAnnouncementResponse(intelligence, operation.ID,
                     PoliceOperationPlayerResponse.Surrendered, now);
-            else if (Player.IsDangerouslyArmed || Player.IsWanted)
+            else if (PlayerIsDangerouslyArmed || Player.IsWanted)
                 manager.RecordAnnouncementResponse(intelligence, operation.ID,
                     PoliceOperationPlayerResponse.Resisted, now);
             else if (Game.GameTime - runtime.StageStartedAt >= 6000)
@@ -281,7 +298,7 @@ public class ResidenceOperationsDispatcher
                     unavailableOfficer.Pedestrian.Delete();
             }
             runtime.Officers.RemoveAll(x => x == null || x.Pedestrian == null || !x.Pedestrian.Exists() || !x.Pedestrian.IsAlive);
-            if (Player.IsBusted)
+            if (PlayerIsBusted)
             {
                 if (!manager.Advance(intelligence, operation.ID, PoliceOperationStage.Completed, now,
                     "Subject apprehended during the residence raid."))
@@ -402,7 +419,7 @@ public class ResidenceOperationsDispatcher
     private void UpdateSearchOperation(LawEnforcementIntelligence intelligence,
         PoliceOperationRecord operation, RuntimeOperation runtime, DateTime now)
     {
-        PoliceOperationsManager manager = modPlayerOperations(intelligence);
+        PoliceOperationsManager manager = GetOperationsManager(intelligence);
         if (manager == null || runtime.Residence == null)
             return;
 
@@ -442,7 +459,7 @@ public class ResidenceOperationsDispatcher
             if (!IsPlayerAtResidence(runtime.Residence))
                 manager.RecordAnnouncementResponse(intelligence, operation.ID,
                     PoliceOperationPlayerResponse.Absent, now);
-            else if (Player.IsAttemptingToSurrender)
+            else if (PlayerIsAttemptingToSurrender)
                 manager.RecordAnnouncementResponse(intelligence, operation.ID,
                     PoliceOperationPlayerResponse.CompliedWithSearch, now);
             else if (Game.GameTime - runtime.StageStartedAt >= 5000)
@@ -692,7 +709,7 @@ public class ResidenceOperationsDispatcher
         intelligence.Normalize();
         foreach (PoliceOperationRecord operation in intelligence.PoliceOperations.Where(x => x != null &&
             x.Stage != PoliceOperationStage.Completed && x.Stage != PoliceOperationStage.Aborted).ToList())
-            modPlayerOperations(intelligence)?.Abort(intelligence, operation.ID, now, reason);
+            GetOperationsManager(intelligence)?.Abort(intelligence, operation.ID, now, reason);
         foreach (RuntimeOperation runtime in RuntimeOperations.Values.ToList())
             CleanupRuntime(runtime);
         RuntimeOperations.Clear();
