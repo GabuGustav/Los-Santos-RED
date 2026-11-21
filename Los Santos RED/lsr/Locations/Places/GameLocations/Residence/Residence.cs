@@ -626,6 +626,9 @@ public class Residence : GameLocation, ILocationSetupable, IRestableLocation, II
         Player.BankAccounts.GiveMoney(-1 * PurchasePrice, true);
         IsOwned = true;
         IsRented = false;
+        Mod.Player modPlayer = Player as Mod.Player;
+        modPlayer?.LawEnforcementIntelligence?.RecordResidenceOwnership(
+            modPlayer.CurrentDateTime, Name, EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z, true);
         UpdateStoredData();
         Player.Properties.AddOwnedLocation(this);
         if (!IsRented)
@@ -645,6 +648,9 @@ public class Residence : GameLocation, ILocationSetupable, IRestableLocation, II
     }
     protected override void OnSold()
     {
+        Mod.Player modPlayer = Player as Mod.Player;
+        modPlayer?.LawEnforcementIntelligence?.RecordResidenceOwnership(
+            modPlayer.CurrentDateTime, Name, EntrancePosition.X, EntrancePosition.Y, EntrancePosition.Z, false);
         Reset();
         Player.Properties.RemoveOwnedLocation(this);
         Player.BankAccounts.GiveMoney(SalesPrice, true);
