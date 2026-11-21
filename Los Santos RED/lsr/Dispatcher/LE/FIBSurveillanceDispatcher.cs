@@ -384,7 +384,8 @@ public class FIBSurveillanceDispatcher
             if (distance > settings.SurveillanceMaxDistance || !canObserve)
             {
                 if (assignment.State == SurveillanceAssignmentState.Following ||
-                    assignment.State == SurveillanceAssignmentState.Approaching)
+                    assignment.State == SurveillanceAssignmentState.Approaching ||
+                    assignment.State == SurveillanceAssignmentState.StationaryWatch)
                     (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(assignment, SurveillanceAssignmentState.LostContact, now);
 
                 DateTime lastContact = assignment.LastSuccessfulObservationAt == DateTime.MinValue
@@ -422,7 +423,25 @@ public class FIBSurveillanceDispatcher
                 (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(assignment, SurveillanceAssignmentState.Following, now);
             }
 
-            if (Game.GameTime - team.LastFollowCommandAt >= 5000)
+            bool playerStationary = Player.IsInVehicle
+                ? Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
+                    Player.CurrentVehicle.Vehicle.Speed <= 0.5f
+                : Player.Character.Exists() && Player.Character.Speed <= 0.5f;
+
+            if (assignment.State == SurveillanceAssignmentState.Following &&
+                playerStationary && distance <= settings.SurveillanceMinDistance + 40f)
+            {
+                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                    assignment, SurveillanceAssignmentState.StationaryWatch, now);
+            }
+            else if (assignment.State == SurveillanceAssignmentState.StationaryWatch && !playerStationary)
+            {
+                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                    assignment, SurveillanceAssignmentState.Following, now);
+            }
+
+            if (assignment.State != SurveillanceAssignmentState.StationaryWatch &&
+                Game.GameTime - team.LastFollowCommandAt >= 5000)
                 IssueFollowCommand(team, settings);
 
             RecordActualObservation(intelligence, assignment, now, team);
