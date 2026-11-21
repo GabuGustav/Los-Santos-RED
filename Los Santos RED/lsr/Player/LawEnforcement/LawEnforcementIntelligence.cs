@@ -248,6 +248,8 @@ namespace LosSantosRED.lsr
                     observedAt - x.ObservedAt < TimeSpan.FromMinutes(30));
                 if (surveillancePrevious != null)
                 {
+                    if (string.IsNullOrWhiteSpace(surveillancePrevious.ID))
+                        surveillancePrevious.ID = Guid.NewGuid().ToString("N");
                     surveillancePrevious.ObservedAt = observedAt;
                     surveillancePrevious.Confidence = NormalizeProbability(confidence);
                     surveillancePrevious.IsKnownToPolice = isKnownToPolice;
