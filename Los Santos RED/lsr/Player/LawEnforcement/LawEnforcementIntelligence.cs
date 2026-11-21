@@ -166,13 +166,9 @@ namespace LosSantosRED.lsr
                     storedObservation.ObservedAt >= x.IssuedAt))
                 {
                     if (string.IsNullOrWhiteSpace(warrant.SuspectedResidenceID) ||
-                        !string.Equals(warrant.SuspectedResidenceID, residenceID, StringComparison.OrdinalIgnoreCase))
+                        inferredConfidence > warrant.ResidenceConfidence)
                     {
                         warrant.SuspectedResidenceID = residenceID;
-                        warrant.ResidenceConfidence = inferredConfidence;
-                    }
-                    else if (inferredConfidence > warrant.ResidenceConfidence)
-                    {
                         warrant.ResidenceConfidence = inferredConfidence;
                     }
                     if (warrant.EvidenceObservationIDs == null)
