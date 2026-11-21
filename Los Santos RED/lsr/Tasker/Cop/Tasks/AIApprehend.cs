@@ -2,6 +2,7 @@
 using LosSantosRED.lsr.Interface;
 using Rage;
 using Rage.Native;
+using LSR.Vehicles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
