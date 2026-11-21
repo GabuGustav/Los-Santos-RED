@@ -102,6 +102,20 @@ namespace LosSantosRED.lsr
             return changed;
         }
 
+        // Returns only alerts this agency is entitled to see. The jurisdiction fallback
+        // mirrors FindActive so an issuing jurisdiction can act without a separate relay.
+        public IEnumerable<WarrantRecord> GetActiveForAgency(LawEnforcementIntelligence intelligence,
+            string agencyID, string jurisdictionID = null)
+        {
+            if (intelligence == null || intelligence.Warrants == null || string.IsNullOrWhiteSpace(agencyID))
+                return Enumerable.Empty<WarrantRecord>();
+            return intelligence.Warrants.Where(warrant => warrant != null &&
+                    warrant.Status == WarrantStatus.Active &&
+                    ((warrant.KnownToAgencyIDs != null && warrant.KnownToAgencyIDs.Contains(agencyID, StringComparer.OrdinalIgnoreCase)) ||
+                     (!string.IsNullOrWhiteSpace(jurisdictionID) && string.Equals(warrant.JurisdictionID, jurisdictionID, StringComparison.OrdinalIgnoreCase))))
+                .OrderByDescending(warrant => warrant.Priority).ThenBy(warrant => warrant.IssuedAt).ToList();
+        }
+
         public IEnumerable<WarrantRecord> GetActive(LawEnforcementIntelligence intelligence)
         {
             if (intelligence == null || intelligence.Warrants == null) return Enumerable.Empty<WarrantRecord>();
