@@ -738,9 +738,15 @@ namespace LosSantosRED.lsr
             observation.Confidence = NormalizeProbability(observation.Confidence);
             IntelligenceObservation previous = Observations
                 .Where(x => x != null && x.SourceID == observation.SourceID && x.EvidenceType == observation.EvidenceType &&
-                    x.TargetType == observation.TargetType && x.TargetID == observation.TargetID && x.Notes == observation.Notes)
+                    x.TargetType == observation.TargetType && x.TargetID == observation.TargetID && x.Notes == observation.Notes &&
+                    x.IsKnownToPolice == observation.IsKnownToPolice && x.IsVerified == observation.IsVerified)
                 .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
-            if (previous != null && observation.ObservedAt >= previous.ObservedAt &&
+            bool observationFallsAfterWarrantIssue = previous != null &&
+                observation.IsKnownToPolice && observation.IsVerified && Warrants != null &&
+                Warrants.Any(warrant => warrant != null && warrant.Status == WarrantStatus.Active &&
+                    previous.ObservedAt < warrant.IssuedAt && observation.ObservedAt >= warrant.IssuedAt);
+            if (previous != null && !observationFallsAfterWarrantIssue &&
+                observation.ObservedAt >= previous.ObservedAt &&
                 observation.ObservedAt - previous.ObservedAt < TimeSpan.FromMinutes(5)) return false;
 
             Observations.Add(observation);
