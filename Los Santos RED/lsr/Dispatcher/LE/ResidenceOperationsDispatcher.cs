@@ -657,12 +657,10 @@ public class ResidenceOperationsDispatcher
             x.LastSuccessfulObservationAt != DateTime.MinValue &&
             x.LastSuccessfulObservationAt <= now &&
             now - x.LastSuccessfulObservationAt <= TimeSpan.FromMinutes(2) &&
-            (x.State == SurveillanceAssignmentState.Following ||
-             x.State == SurveillanceAssignmentState.StationaryWatch ||
-             x.State == SurveillanceAssignmentState.LostContact ||
-             x.State == SurveillanceAssignmentState.Reporting) &&
+            (x.State == SurveillanceAssignmentState.StationaryWatch ||
+             x.State == SurveillanceAssignmentState.LostContact) &&
             new Vector3(x.LastKnownX, x.LastKnownY, x.LastKnownZ)
-                .DistanceTo2D(residence.EntrancePosition) <= 60f);
+                .DistanceTo2D(residence.EntrancePosition) <= 40f);
     }
 
     private Residence FindResidence(string residenceID)
