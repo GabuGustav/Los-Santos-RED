@@ -92,12 +92,38 @@ namespace LosSantosRED.lsr
 
             if (settings.EnableBackgroundInvestigation)
             {
-                bool hasPoliceEvidence = intelligence.Observations.Any(x => x != null && x.IsKnownToPolice && x.ObservedAt <= currentTime);
-                bool hasActiveRecords = intelligence.Warrants.Any(x => x != null && x.Status == WarrantStatus.Active) ||
+                bool hasPoliceEvidence = intelligence.Observations.Any(x => x != null &&
+                    x.IsKnownToPolice && x.ObservedAt <= currentTime);
+                bool hasActiveRecords = intelligence.Warrants.Any(x => x != null &&
+                    x.Status == WarrantStatus.Active) ||
                     intelligence.BOLOs.Any(x => x != null && x.Status == BOLOStatus.Active);
-                bool hasOpenInvestigation = intelligence.Investigations.Any(x => x != null &&
-                    x.Stage != InvestigationStage.Closed && x.Stage != InvestigationStage.Suspended);
-                if (hasPoliceEvidence || hasActiveRecords || hasOpenInvestigation)
+                InvestigationRecord openInvestigation = intelligence.Investigations.FirstOrDefault(x =>
+                    x != null && x.Stage != InvestigationStage.Closed &&
+                    x.Stage != InvestigationStage.Suspended);
+                InvestigationRecord latestClosedOrSuspended = intelligence.Investigations
+                    .Where(x => x != null && (x.Stage == InvestigationStage.Closed ||
+                        x.Stage == InvestigationStage.Suspended))
+                    .OrderByDescending(x => x.LastActivityAt).FirstOrDefault();
+
+                bool hasNewEvidence = latestClosedOrSuspended == null
+                    ? hasPoliceEvidence
+                    : intelligence.Observations.Any(x => x != null && x.IsKnownToPolice &&
+                        x.ObservedAt > latestClosedOrSuspended.LastActivityAt &&
+                        x.ObservedAt <= currentTime);
+                bool hasNewWarrant = latestClosedOrSuspended == null
+                    ? hasActiveRecords
+                    : intelligence.Warrants.Any(x => x != null && x.Status == WarrantStatus.Active &&
+                        x.IssuedAt > latestClosedOrSuspended.LastActivityAt &&
+                        x.IssuedAt <= currentTime);
+                bool hasNewBOLO = latestClosedOrSuspended == null
+                    ? hasActiveRecords
+                    : intelligence.BOLOs.Any(x => x != null && x.Status == BOLOStatus.Active &&
+                        x.IssuedAt > latestClosedOrSuspended.LastActivityAt &&
+                        x.IssuedAt <= currentTime);
+
+                // A closed or suspended case must not silently reopen just because old records
+                // remain in the database. New police evidence or a newly issued alert is required.
+                if (openInvestigation != null || hasNewEvidence || hasNewWarrant || hasNewBOLO)
                     InvestigationManager.Refresh(intelligence, currentTime);
             }
 
