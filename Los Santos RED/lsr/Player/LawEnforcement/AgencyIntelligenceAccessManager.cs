@@ -167,7 +167,19 @@ namespace LosSantosRED.lsr
                 allowed ? null : "Requested scope is not authorised.");
             if (!allowed) return null;
             InvestigationRecord record = FindInvestigation(intelligence, investigationID);
-            return record == null ? null : record.Copy();
+            if (record == null) return null;
+            InvestigationRecord detached = record.Copy();
+            if (requiredScope == InvestigationAccessScope.Summary)
+            {
+                detached.ObservationIDs.Clear();
+                detached.WarrantIDs.Clear();
+                detached.BOLOIDs.Clear();
+                detached.KnownVehicleIDs.Clear();
+                detached.KnownLocationIDs.Clear();
+                detached.AssociateIDs.Clear();
+                detached.Notes = null;
+            }
+            return detached;
         }
 
         public IEnumerable<InvestigationAccessRequest> GetPendingRequestsForAgency(
