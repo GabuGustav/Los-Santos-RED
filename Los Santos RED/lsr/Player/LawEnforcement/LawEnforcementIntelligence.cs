@@ -119,6 +119,8 @@ namespace LosSantosRED.lsr
                     sourceID, 0.8f, true, "Player was visibly driving this vehicle when observed by patrol.");
             RecordRecentBusinessVisitObservation(observedAt, IntelligenceSource.PatrolOfficer,
                 sourceID, officerID, x, y, z, 0.85f);
+            RecordRecentResidenceVisitObservation(observedAt, IntelligenceSource.PatrolOfficer,
+                sourceID, officerID, x, y, z, locationID, locationName, 0.85f);
             return recorded;
         }
 
@@ -357,6 +359,8 @@ namespace LosSantosRED.lsr
             }
             RecordRecentBusinessVisitObservation(observedAt, IntelligenceSource.Surveillance,
                 sourceID, teamID, x, y, z, 0.9f);
+            RecordRecentResidenceVisitObservation(observedAt, IntelligenceSource.Surveillance,
+                sourceID, teamID, x, y, z, locationID, locationName, 0.9f);
             return recorded;
         }
 
@@ -663,6 +667,41 @@ namespace LosSantosRED.lsr
             }
             LastUpdatedAt = observedAt;
             return true;
+        }
+
+        // A private residence visit becomes police intelligence only when a direct patrol or FIB
+        // observation independently places the subject at the same location shortly before/after entry.
+        private bool RecordRecentResidenceVisitObservation(DateTime observedAt, IntelligenceSource source,
+            string sourceID, string entityID, float x, float y, float z,
+            string locationID, string locationName, float confidence)
+        {
+            if (observedAt == DateTime.MinValue ||
+                (source != IntelligenceSource.PatrolOfficer && source != IntelligenceSource.Surveillance) ||
+                string.IsNullOrWhiteSpace(sourceID) || Observations == null)
+                return false;
+
+            IntelligenceObservation visit = Observations.Where(item => item != null &&
+                !item.IsKnownToPolice && item.Source == IntelligenceSource.PlayerRecord &&
+                item.EvidenceType == IntelligenceEvidenceType.VisualSighting &&
+                item.TargetType == IntelligenceTargetType.Location &&
+                item.ObservedAt <= observedAt &&
+                observedAt - item.ObservedAt <= TimeSpan.FromMinutes(2))
+                .Where(item =>
+                {
+                    float dx = item.PositionX - x;
+                    float dy = item.PositionY - y;
+                    float dz = item.PositionZ - z;
+                    return dx * dx + dy * dy + dz * dz <= 35f * 35f;
+                })
+                .OrderByDescending(item => item.ObservedAt)
+                .FirstOrDefault();
+
+            if (visit == null) return false;
+            bool recorded = RecordResidenceObservation(observedAt, source, sourceID,
+                visit.TargetID, visit.TargetDescription, visit.PositionX, visit.PositionY, visit.PositionZ,
+                locationID, locationName, confidence);
+            if (recorded) LastUpdatedAt = observedAt;
+            return recorded;
         }
 
         public bool RecordObservation(IntelligenceObservation observation)
