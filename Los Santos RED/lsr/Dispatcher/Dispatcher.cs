@@ -329,8 +329,22 @@ public class Dispatcher
     }
     public void Dispose()
     {
-        ResidenceOperationsDispatcher?.Dispose();
-        FIBSurveillanceDispatcher?.Dispose();
+        try
+        {
+            ResidenceOperationsDispatcher?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            EntryPoint.WriteToConsole("Residence operations cleanup failed: " + ex);
+        }
+        try
+        {
+            FIBSurveillanceDispatcher?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            EntryPoint.WriteToConsole("FIB surveillance cleanup failed: " + ex);
+        }
         LEDispatcher.Dispose();
     }
     public void DebugSpawnRoadblock(bool enableCars, bool enableSpike, bool enableProps, float distance)
