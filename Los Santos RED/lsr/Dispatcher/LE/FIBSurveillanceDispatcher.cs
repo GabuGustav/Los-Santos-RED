@@ -240,17 +240,25 @@ public class FIBSurveillanceDispatcher
             if (spawnedVehicle == null || spawnedDriver == null)
             {
                 foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null))
-                    if (ped.Pedestrian != null && ped.Pedestrian.Exists()) ped.Pedestrian.Delete();
+                {
+                    try { if (ped.Pedestrian != null && ped.Pedestrian.Exists()) ped.Pedestrian.Delete(); }
+                    catch (Exception cleanupException) { EntryPoint.WriteToConsole("FIB partial ped cleanup failed: " + cleanupException); }
+                }
                 foreach (VehicleExt vehicle in spawnTask.CreatedVehicles.Where(x => x != null))
-                    if (vehicle.Vehicle != null && vehicle.Vehicle.Exists()) vehicle.FullyDelete();
+                {
+                    try { if (vehicle.Vehicle != null && vehicle.Vehicle.Exists()) vehicle.FullyDelete(); }
+                    catch (Exception cleanupException) { EntryPoint.WriteToConsole("FIB partial vehicle cleanup failed: " + cleanupException); }
+                }
                 continue;
             }
 
             if (NativeFunction.Natives.HAS_ENTITY_CLEAR_LOS_TO_ENTITY<bool>(
                 Player.Character, spawnedVehicle.Vehicle, 17))
             {
-                spawnedDriver.Pedestrian.Delete();
-                spawnedVehicle.FullyDelete();
+                try { spawnedDriver.Pedestrian.Delete(); }
+                catch (Exception ex) { EntryPoint.WriteToConsole("FIB visible-driver cleanup failed: " + ex); }
+                try { spawnedVehicle.FullyDelete(); }
+                catch (Exception ex) { EntryPoint.WriteToConsole("FIB visible-vehicle cleanup failed: " + ex); }
                 continue;
             }
 
@@ -550,10 +558,24 @@ public class FIBSurveillanceDispatcher
     private static void CleanupTeam(RuntimeTeam team)
     {
         if (team == null) return;
-        if (team.Driver != null && team.Driver.Pedestrian != null && team.Driver.Pedestrian.Exists())
-            team.Driver.Pedestrian.Delete();
-        if (team.Vehicle != null && team.Vehicle.Vehicle != null && team.Vehicle.Vehicle.Exists())
-            team.Vehicle.FullyDelete();
+        try
+        {
+            if (team.Driver != null && team.Driver.Pedestrian != null && team.Driver.Pedestrian.Exists())
+                team.Driver.Pedestrian.Delete();
+        }
+        catch (Exception ex)
+        {
+            EntryPoint.WriteToConsole("FIB driver cleanup failed: " + ex);
+        }
+        try
+        {
+            if (team.Vehicle != null && team.Vehicle.Vehicle != null && team.Vehicle.Vehicle.Exists())
+                team.Vehicle.FullyDelete();
+        }
+        catch (Exception ex)
+        {
+            EntryPoint.WriteToConsole("FIB vehicle cleanup failed: " + ex);
+        }
     }
 
     private static float Distance2D(Vector3 a, Vector3 b)
