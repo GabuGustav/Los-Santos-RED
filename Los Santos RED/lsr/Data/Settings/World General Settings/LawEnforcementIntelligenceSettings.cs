@@ -60,6 +60,18 @@ public class LawEnforcementIntelligenceSettings : ISettingsDefaultable
     [Description("Minimum residence confidence required before a raid can be considered, from 0 to 100.")]
     public float RaidMinimumConfidence { get; set; } = 75f;
 
+    [Category("Law Enforcement Intelligence")]
+    [Description("Allow active warrant and BOLO alerts to be shared with other agencies through delayed dispatch relays.")]
+    public bool EnableInterAgencyAlertSharing { get; set; } = true;
+
+    [Category("Law Enforcement Intelligence")]
+    [Description("Standard information-sharing delay in minutes before another agency receives an alert.")]
+    public int InterAgencyAlertDelayMinutes { get; set; } = 5;
+
+    [Category("Law Enforcement Intelligence")]
+    [Description("Information-sharing delay in minutes for active mutual-aid incidents.")]
+    public int MutualAidAlertDelayMinutes { get; set; } = 1;
+
     public LawEnforcementIntelligenceSettings()
     {
         SetDefault();
@@ -81,6 +93,9 @@ public class LawEnforcementIntelligenceSettings : ISettingsDefaultable
         BOLOInZoneStopChance = 65f;
         BOLOOutOfZoneStopChance = 15f;
         RaidMinimumConfidence = 75f;
+        EnableInterAgencyAlertSharing = true;
+        InterAgencyAlertDelayMinutes = 5;
+        MutualAidAlertDelayMinutes = 1;
     }
 
     public void Normalize()
@@ -99,6 +114,8 @@ public class LawEnforcementIntelligenceSettings : ISettingsDefaultable
         BOLOInZoneStopChance = ClampPercent(BOLOInZoneStopChance, 65f);
         BOLOOutOfZoneStopChance = ClampPercent(BOLOOutOfZoneStopChance, 15f);
         RaidMinimumConfidence = ClampPercent(RaidMinimumConfidence, 75f);
+        InterAgencyAlertDelayMinutes = Math.Max(0, Math.Min(1440, InterAgencyAlertDelayMinutes));
+        MutualAidAlertDelayMinutes = Math.Max(0, Math.Min(1440, MutualAidAlertDelayMinutes));
     }
 
     private static float ClampDistance(float value, float fallback)
