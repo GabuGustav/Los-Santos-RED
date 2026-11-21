@@ -274,7 +274,7 @@ namespace Mod
             if (LawEnforcementIntelligence == null) LawEnforcementIntelligence = new LawEnforcementIntelligence();
             return LawEnforcementIntelligenceManager?.BOLOManager?.Issue(LawEnforcementIntelligence,
                 CurrentDateTime, targetType, description, vehicleModel, plateNumber, zoneID,
-                lastKnownLocationID, expiresAt, settings, notes);
+                lastKnownLocationID, expiresAt, settings, notes, AssignedAgency?.ID;
         }
 
         public float GetVehicleBOLOStopChance(string zoneID, string plateNumber, string vehicleModel)
