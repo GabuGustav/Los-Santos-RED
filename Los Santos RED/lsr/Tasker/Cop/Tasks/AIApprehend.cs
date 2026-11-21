@@ -581,7 +581,8 @@ public class AIApprehend : ComplexTask
     private void RespondToTrafficStop(bool comply)
     {
         Mod.Player modPlayer = Player as Mod.Player;
-        if (modPlayer == null || CurrentTrafficStopStage != TrafficStopStage.AwaitingCompliance)
+        if (modPlayer == null || (CurrentTrafficStopStage != TrafficStopStage.AwaitingCompliance &&
+            CurrentTrafficStopStage != TrafficStopStage.Refused))
             return;
 
         modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
