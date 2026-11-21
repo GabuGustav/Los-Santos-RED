@@ -295,8 +295,11 @@ namespace LosSantosRED.lsr
             });
             if (recorded)
             {
-                string vehicleID = !string.IsNullOrWhiteSpace(registrationID)
-                    ? "REG:" + registrationID : "PLATE:" + plateNumber.Trim().ToUpperInvariant();
+                string vehicleID = !string.IsNullOrWhiteSpace(plateNumber)
+                    ? "PLATE:" + plateNumber.Trim().ToUpperInvariant()
+                    : !string.IsNullOrWhiteSpace(registrationID)
+                        ? "REG:" + registrationID.Trim().ToUpperInvariant()
+                        : null;
                 RecordVehicleAssociation(observedAt, vehicleID, VehicleAssociationType.ConfirmedByANPR,
                     "ANPR:" + (officerID ?? "UNKNOWN"), 0.98f, true,
                     "Vehicle and displayed plate were confirmed by an active police ANPR scan while the player was visibly driving.");
