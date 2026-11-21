@@ -141,7 +141,7 @@ namespace LosSantosRED.lsr
                 Source = source,
                 EvidenceType = IntelligenceEvidenceType.VisualSighting,
                 TargetType = IntelligenceTargetType.Location,
-                TargetID = "RESIDENCE:" + residenceID,
+                TargetID = residenceID,
                 TargetDescription = residenceName,
                 SourceID = sourceID,
                 EntityID = SubjectID,
@@ -160,7 +160,7 @@ namespace LosSantosRED.lsr
             if (Warrants == null)
                 Warrants = new List<WarrantRecord>();
             bool recorded = RecordOrRefreshObservation(observation);
-            string residenceTargetID = "RESIDENCE:" + residenceID;
+            string residenceTargetID = residenceID;
             IntelligenceObservation storedObservation = Observations.Where(candidate => candidate != null &&
                 candidate.Source == source && candidate.SourceID == sourceID &&
                 candidate.EvidenceType == IntelligenceEvidenceType.VisualSighting &&
