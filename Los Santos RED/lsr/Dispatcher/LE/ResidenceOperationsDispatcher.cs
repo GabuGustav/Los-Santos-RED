@@ -62,7 +62,6 @@ public class ResidenceOperationsDispatcher
         LastUpdateGameTime = Game.GameTime;
 
         LawEnforcementIntelligence intelligence = modPlayer.LawEnforcementIntelligence;
-        intelligence.Normalize();
         settings.Normalize();
         if (!object.ReferenceEquals(CurrentRuntimeIntelligence, intelligence))
         {
