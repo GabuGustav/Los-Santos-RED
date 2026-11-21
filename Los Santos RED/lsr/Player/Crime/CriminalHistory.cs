@@ -195,6 +195,19 @@ namespace LosSantosRED.lsr
             }
             LawEnforcementBOLOID = null;
         }
+
+        public void ResolveLawEnforcementBOLO()
+        {
+            Mod.Player modPlayer = Player as Mod.Player;
+            if (modPlayer != null && !string.IsNullOrWhiteSpace(LawEnforcementBOLOID))
+            {
+                modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.Resolve(
+                    modPlayer.LawEnforcementIntelligence,
+                    LawEnforcementBOLOID,
+                    Time?.CurrentDateTime ?? DateTime.MinValue);
+            }
+            LawEnforcementBOLOID = null;
+        }
         public void OnLostWanted()
         {
             //clear criminal history?
