@@ -17,7 +17,12 @@ namespace LosSantosRED.lsr
             intelligence.Normalize();
             WarrantRecord warrant = intelligence.IssueWarrant(issuedAt, type, priority, agencyID, jurisdictionID,
                 crimeIDs, ownedBusinessIDs, residenceID, residenceConfidence);
-            if (warrant != null) warrant.ExpiresAt = expiresAt;
+            if (warrant != null)
+            {
+                warrant.ExpiresAt = expiresAt;
+                if (!string.IsNullOrWhiteSpace(agencyID) && !warrant.KnownToAgencyIDs.Contains(agencyID, StringComparer.OrdinalIgnoreCase))
+                    warrant.KnownToAgencyIDs.Add(agencyID);
+            }
             return warrant;
         }
 
@@ -65,10 +70,13 @@ namespace LosSantosRED.lsr
         public WarrantRecord FindActive(LawEnforcementIntelligence intelligence, string agencyID, string jurisdictionID)
         {
             if (intelligence == null || intelligence.Warrants == null) return null;
-            // Warrants are discoverable across jurisdiction boundaries. Agency/jurisdiction are provenance,
-            // not a legal barrier to recognizing an active warrant.
+            // A warrant remains legally valid across jurisdictions, but an officer must first
+            // belong to an agency that received the alert or be operating in its issuing jurisdiction.
+            if (string.IsNullOrWhiteSpace(agencyID)) return null;
             return intelligence.Warrants.Where(x => x != null && x.Status == WarrantStatus.Active &&
-                    IsArrestAuthority(x.Type))
+                    IsArrestAuthority(x.Type) &&
+                    ((x.KnownToAgencyIDs != null && x.KnownToAgencyIDs.Contains(agencyID, StringComparer.OrdinalIgnoreCase)) ||
+                     (!string.IsNullOrWhiteSpace(jurisdictionID) && string.Equals(x.JurisdictionID, jurisdictionID, StringComparison.OrdinalIgnoreCase))))
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt).FirstOrDefault();
         }
 
