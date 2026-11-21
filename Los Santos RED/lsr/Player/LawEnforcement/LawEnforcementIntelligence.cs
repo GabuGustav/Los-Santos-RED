@@ -107,6 +107,8 @@ namespace LosSantosRED.lsr
             if (inVehicle && !string.IsNullOrWhiteSpace(vehicleID))
                 RecordVehicleAssociation(observedAt, vehicleID, VehicleAssociationType.CurrentDriver,
                     sourceID, 0.8f, true, "Player was visibly driving this vehicle when observed by patrol.");
+            RecordRecentBusinessVisitObservation(observedAt, IntelligenceSource.PatrolOfficer,
+                sourceID, officerID, x, y, z, 0.85f);
             return recorded;
         }
 
@@ -207,6 +209,8 @@ namespace LosSantosRED.lsr
                 RecordVehicleAssociation(observedAt, vehicleID, VehicleAssociationType.CurrentDriver,
                     sourceID, 0.9f, true, "Player was directly observed driving this vehicle by FIB surveillance.");
             }
+            RecordRecentBusinessVisitObservation(observedAt, IntelligenceSource.Surveillance,
+                sourceID, teamID, x, y, z, 0.9f);
             return recorded;
         }
 
@@ -288,8 +292,29 @@ namespace LosSantosRED.lsr
 
         public bool RecordBusinessOwnership(DateTime observedAt, string businessName, float x, float y, float z, bool acquired)
         {
-            return RecordBusinessActivity(observedAt, businessName, x, y, z, IntelligenceEvidenceType.BusinessOwnership,
-                acquired ? "Player acquired this business." : "Player ceased owning this business.");
+            if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(businessName)) return false;
+            string businessID = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", businessName.Trim(), x, y, z);
+            return RecordObservation(new IntelligenceObservation
+            {
+                ObservedAt = observedAt,
+                Source = IntelligenceSource.BusinessRecord,
+                EvidenceType = IntelligenceEvidenceType.BusinessOwnership,
+                TargetType = IntelligenceTargetType.Business,
+                TargetID = businessID,
+                TargetDescription = businessName,
+                SourceID = "BUSINESS_REGISTRY",
+                IsKnownToPolice = true,
+                IsVerified = true,
+                Confidence = 0.98f,
+                PositionX = x,
+                PositionY = y,
+                PositionZ = z,
+                LocationID = businessID,
+                LocationName = businessName,
+                Notes = acquired ? "Official business record shows the player acquired this business." :
+                    "Official business record shows the player ceased owning this business."
+            });
         }
 
         private bool RecordBusinessActivity(DateTime observedAt, string businessName, float x, float y, float z, IntelligenceEvidenceType evidenceType, string notes)
@@ -305,6 +330,52 @@ namespace LosSantosRED.lsr
                 PositionX = x, PositionY = y, PositionZ = z, LocationID = businessID,
                 LocationName = businessName, Notes = notes
             });
+        }
+
+        // A private player-side visit becomes police intelligence only when an officer or
+        // surveillance team independently sees the player at the recorded business location.
+        // The short time and distance window prevents old visits from being backfilled.
+        private bool RecordRecentBusinessVisitObservation(DateTime observedAt, IntelligenceSource source,
+            string sourceID, string entityID, float x, float y, float z, float confidence)
+        {
+            if (observedAt == DateTime.MinValue || source == IntelligenceSource.Unknown ||
+                string.IsNullOrWhiteSpace(sourceID) || Observations == null)
+                return false;
+
+            IntelligenceObservation visit = Observations.Where(item => item != null &&
+                !item.IsKnownToPolice && item.Source == IntelligenceSource.PlayerRecord &&
+                item.EvidenceType == IntelligenceEvidenceType.BusinessVisit &&
+                item.TargetType == IntelligenceTargetType.Business &&
+                item.ObservedAt <= observedAt &&
+                observedAt - item.ObservedAt <= TimeSpan.FromMinutes(2))
+                .Where(item =>
+                {
+                    float dx = item.PositionX - x;
+                    float dy = item.PositionY - y;
+                    float dz = item.PositionZ - z;
+                    return dx * dx + dy * dy + dz * dz <= 35f * 35f;
+                })
+                .OrderByDescending(item => item.ObservedAt)
+                .FirstOrDefault();
+
+            if (visit == null) return false;
+            visit.Source = source;
+            visit.SourceID = sourceID;
+            visit.EntityID = entityID;
+            visit.IsKnownToPolice = true;
+            visit.IsVerified = true;
+            visit.Confidence = NormalizeProbability(confidence);
+            visit.Notes = "Business visit independently corroborated by a direct police observation.";
+            foreach (WarrantRecord warrant in Warrants.Where(item => item != null &&
+                item.Status == WarrantStatus.Active && visit.ObservedAt >= item.IssuedAt))
+            {
+                if (warrant.EvidenceObservationIDs == null)
+                    warrant.EvidenceObservationIDs = new List<string>();
+                if (!warrant.EvidenceObservationIDs.Contains(visit.ID))
+                    warrant.EvidenceObservationIDs.Add(visit.ID);
+            }
+            LastUpdatedAt = observedAt;
+            return true;
         }
 
         public bool RecordObservation(IntelligenceObservation observation)
@@ -438,7 +509,10 @@ namespace LosSantosRED.lsr
             if (investigation.ObservationIDs == null) investigation.ObservationIDs = new List<string>();
             if (investigation.KnownVehicleIDs == null) investigation.KnownVehicleIDs = new List<string>();
             if (investigation.KnownLocationIDs == null) investigation.KnownLocationIDs = new List<string>();
-            List<IntelligenceObservation> evidence = Observations.Where(x => x != null && x.IsKnownToPolice && x.ObservedAt <= currentTime).ToList();
+            List<IntelligenceObservation> evidence = Observations.Where(x => x != null &&
+                x.IsKnownToPolice && x.ObservedAt <= currentTime &&
+                (x.EvidenceType != IntelligenceEvidenceType.BusinessVisit ||
+                 x.ObservedAt >= investigation.CreatedAt)).ToList();
             foreach (IntelligenceObservation item in evidence)
             {
                 if (!investigation.ObservationIDs.Contains(item.ID)) investigation.ObservationIDs.Add(item.ID);
