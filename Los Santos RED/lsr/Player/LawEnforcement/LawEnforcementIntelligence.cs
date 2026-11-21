@@ -485,6 +485,92 @@ namespace LosSantosRED.lsr
             return recorded;
         }
 
+        public static string GetResidenceIdentity(string residenceName, float x, float y, float z)
+        {
+            if (string.IsNullOrWhiteSpace(residenceName)) return null;
+            return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "RESIDENCE:{0}:{1:0.00}:{2:0.00}:{3:0.00}", residenceName.Trim(), x, y, z);
+        }
+
+        // Residence visits are private player activity until a police source independently observes the subject nearby.
+        public bool RecordResidenceVisit(DateTime observedAt, string residenceName, float x, float y, float z)
+        {
+            if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(residenceName)) return false;
+            string residenceID = GetResidenceIdentity(residenceName, x, y, z);
+            bool recorded = RecordObservation(new IntelligenceObservation
+            {
+                ObservedAt = observedAt,
+                Source = IntelligenceSource.PlayerRecord,
+                EvidenceType = IntelligenceEvidenceType.VisualSighting,
+                TargetType = IntelligenceTargetType.Location,
+                TargetID = residenceID,
+                TargetDescription = residenceName,
+                SourceID = "PLAYER_RESIDENCE_VISIT",
+                EntityID = SubjectID,
+                IsKnownToPolice = false,
+                IsVerified = true,
+                Confidence = 1f,
+                PositionX = x,
+                PositionY = y,
+                PositionZ = z,
+                LocationID = residenceID,
+                LocationName = residenceName,
+                Notes = "Player visited this residence; this private activity record is not automatically known to police."
+            });
+            if (Observations == null) return recorded;
+
+            IntelligenceObservation nearbySighting = Observations
+                .Where(candidate => candidate != null && candidate.IsKnownToPolice && candidate.IsVerified &&
+                    candidate.TargetType == IntelligenceTargetType.Person &&
+                    string.Equals(candidate.TargetID, SubjectID, StringComparison.OrdinalIgnoreCase) &&
+                    (candidate.Source == IntelligenceSource.PatrolOfficer || candidate.Source == IntelligenceSource.Surveillance) &&
+                    candidate.ObservedAt <= observedAt && observedAt - candidate.ObservedAt <= TimeSpan.FromSeconds(30))
+                .OrderByDescending(candidate => candidate.ObservedAt)
+                .FirstOrDefault(sighting =>
+                {
+                    float dx = sighting.PositionX - x;
+                    float dy = sighting.PositionY - y;
+                    return dx * dx + dy * dy <= 35f * 35f;
+                });
+
+            if (nearbySighting != null)
+            {
+                RecordResidenceObservation(observedAt, nearbySighting.Source, nearbySighting.SourceID,
+                    residenceID, residenceName, x, y, z, nearbySighting.LocationID,
+                    nearbySighting.LocationName, Math.Max(0.8f, NormalizeProbability(nearbySighting.Confidence, 0.8f)));
+            }
+            return recorded;
+        }
+
+        public bool RecordResidenceOwnership(DateTime observedAt, string residenceName,
+            float x, float y, float z, bool acquired)
+        {
+            if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(residenceName)) return false;
+            string residenceID = GetResidenceIdentity(residenceName, x, y, z);
+            return RecordObservation(new IntelligenceObservation
+            {
+                ObservedAt = observedAt,
+                Source = IntelligenceSource.BusinessRecord,
+                EvidenceType = IntelligenceEvidenceType.BusinessOwnership,
+                TargetType = IntelligenceTargetType.Location,
+                TargetID = residenceID,
+                TargetDescription = residenceName,
+                SourceID = "PROPERTY_REGISTRY",
+                EntityID = SubjectID,
+                IsKnownToPolice = true,
+                IsVerified = true,
+                Confidence = 0.98f,
+                PositionX = x,
+                PositionY = y,
+                PositionZ = z,
+                LocationID = residenceID,
+                LocationName = residenceName,
+                Notes = acquired
+                    ? "Official property record shows the player acquired this residence."
+                    : "Official property record shows the player ceased owning this residence."
+            });
+        }
+
         public bool RecordBusinessOwnership(DateTime observedAt, string businessName, float x, float y, float z, bool acquired)
         {
             if (observedAt == DateTime.MinValue || string.IsNullOrWhiteSpace(businessName)) return false;
