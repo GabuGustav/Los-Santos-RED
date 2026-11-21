@@ -149,11 +149,12 @@ namespace LosSantosRED.lsr
                 Warrants = new List<WarrantRecord>();
             bool recorded = RecordOrRefreshObservation(observation);
             string residenceTargetID = "RESIDENCE:" + residenceID;
-            IntelligenceObservation storedObservation = Observations.FirstOrDefault(x => x != null &&
+            IntelligenceObservation storedObservation = Observations.Where(x => x != null &&
                 x.Source == source && x.SourceID == sourceID &&
                 x.EvidenceType == IntelligenceEvidenceType.VisualSighting &&
                 string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
-                x.IsKnownToPolice && x.IsVerified);
+                x.IsKnownToPolice && x.IsVerified)
+                .OrderByDescending(x => x.ObservedAt).FirstOrDefault();
 
             if (storedObservation != null)
             {
