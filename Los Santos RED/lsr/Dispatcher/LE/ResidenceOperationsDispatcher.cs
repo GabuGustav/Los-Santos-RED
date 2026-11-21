@@ -399,8 +399,10 @@ public class ResidenceOperationsDispatcher
             manager.Advance(intelligence, operation.ID, PoliceOperationStage.Perimeter, now);
         if (operation.Stage == PoliceOperationStage.Perimeter)
         {
-            if (!runtime.PerimeterSpawned && !DeployPerimeterTeam(intelligence, operation, runtime, manager, now, 1))
+            if (!runtime.PerimeterSpawned && runtime.Residence.EntrancePosition != Vector3.Zero &&
+                !DeployPerimeterTeam(intelligence, operation, runtime, manager, now, 1))
                 return;
+            runtime.PerimeterSpawned = true;
             if (IsPlayerAtResidence(runtime.Residence))
             {
                 if (!manager.Advance(intelligence, operation.ID, PoliceOperationStage.Announcement, now))
