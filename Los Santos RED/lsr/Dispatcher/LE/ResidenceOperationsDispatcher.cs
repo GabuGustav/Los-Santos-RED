@@ -570,7 +570,7 @@ public class ResidenceOperationsDispatcher
         if (!int.TryParse(residenceID, out int id) || id < 0)
             return null;
         return PlacesOfInterest.PossibleLocations.Residences.FirstOrDefault(x =>
-            x != null && x.ResidenceID == id);
+            x != null && x.ResidenceID == id && x.IsCorrectMap(World.IsMPMapLoaded));
     }
 
     private static string FindInvestigationID(LawEnforcementIntelligence intelligence, string warrantID)
