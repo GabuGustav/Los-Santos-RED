@@ -57,8 +57,10 @@ namespace LosSantosRED.lsr
                 !string.Equals(request.OwningAgencyID, decidingAgencyID, StringComparison.OrdinalIgnoreCase))
                 return false;
             InvestigationRecord investigation = FindInvestigation(intelligence, request.InvestigationID);
-            if (investigation == null || investigation.Stage == InvestigationStage.Closed ||
-                (approve && approvedScope < request.RequestedScope)) return false;
+            if (investigation == null || investigation.Stage == InvestigationStage.Closed) return false;
+            if (approve && (int)approvedScope < (int)request.RequestedScope)
+                return false;
+
             request.DecidedByAgencyID = decidingAgencyID;
             request.DecidedAt = decidedAt;
             request.DecisionNotes = decisionNotes;
@@ -120,7 +122,7 @@ namespace LosSantosRED.lsr
             return intelligence.AccessGrants.Any(grant => grant != null && !grant.IsRevoked &&
                 string.Equals(grant.InvestigationID, investigationID, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(grant.GrantedToAgencyID, agencyID, StringComparison.OrdinalIgnoreCase) &&
-                grant.Scope >= requiredScope && grant.GrantedAt <= at &&
+                (int)grant.Scope >= (int)requiredScope && grant.GrantedAt <= at &&
                 (!grant.ExpiresAt.HasValue || at < grant.ExpiresAt.Value));
         }
 
