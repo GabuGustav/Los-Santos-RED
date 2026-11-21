@@ -256,9 +256,10 @@ namespace Mod
                 {
                     if (string.IsNullOrWhiteSpace(suspectedResidenceID))
                         suspectedResidenceID = residenceEvidence.TargetID.Substring("RESIDENCE:".Length);
+                    float inferredResidenceConfidence = Math.Max(0f, Math.Min(1f, residenceEvidence.Confidence * 0.9f));
                     if (float.IsNaN(residenceConfidence) || float.IsInfinity(residenceConfidence) ||
-                        residenceConfidence <= 0f)
-                        residenceConfidence = Math.Max(0f, Math.Min(1f, residenceEvidence.Confidence * 0.9f));
+                        residenceConfidence < inferredResidenceConfidence)
+                        residenceConfidence = inferredResidenceConfidence;
                 }
             }
             return LawEnforcementIntelligenceManager?.WarrantManager?.Issue(LawEnforcementIntelligence,
