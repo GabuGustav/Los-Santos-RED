@@ -373,7 +373,9 @@ namespace LosSantosRED.lsr
             {
                 ObservedAt = observedAt,
                 Source = IntelligenceSource.ANPR,
-                EvidenceType = IntelligenceEvidenceType.LicensePlateRead,
+                EvidenceType = normalizedPlate != null
+                    ? IntelligenceEvidenceType.LicensePlateRead
+                    : IntelligenceEvidenceType.VehicleRegistration,
                 TargetType = normalizedPlate != null ? IntelligenceTargetType.LicensePlate : IntelligenceTargetType.Vehicle,
                 TargetID = normalizedPlate ?? vehicleID,
                 TargetDescription = vehicleDescription,
