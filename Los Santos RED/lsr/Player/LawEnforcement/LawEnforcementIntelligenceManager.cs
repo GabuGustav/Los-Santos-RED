@@ -118,6 +118,41 @@ namespace LosSantosRED.lsr
             return true;
         }
 
+        // Called when a unit from another agency is actually dispatched to the
+        // player's active incident. This is the point at which mutual-aid sharing begins.
+        public int ScheduleActiveAlertsForAgency(LawEnforcementIntelligence intelligence,
+            string receivingAgencyID, DateTime scheduledAt,
+            LawEnforcementIntelligenceSettings settings, bool isMutualAid = true)
+        {
+            if (intelligence == null || settings == null || !settings.EnableInterAgencyAlertSharing ||
+                string.IsNullOrWhiteSpace(receivingAgencyID) || scheduledAt == DateTime.MinValue)
+                return 0;
+
+            intelligence.Normalize();
+            int scheduled = 0;
+            foreach (WarrantRecord warrant in intelligence.Warrants.Where(x => x != null &&
+                x.Status == WarrantStatus.Active &&
+                (x.KnownToAgencyIDs == null || !x.KnownToAgencyIDs.Contains(receivingAgencyID, StringComparer.OrdinalIgnoreCase))))
+            {
+                if (ScheduleAlertDissemination(intelligence, IntelligenceAlertType.Warrant,
+                    warrant.ID, warrant.IssuingAgencyID, receivingAgencyID, scheduledAt,
+                    settings, isMutualAid, "Shared because this agency was dispatched to the active incident."))
+                    scheduled++;
+            }
+
+            foreach (BOLORecord bolo in intelligence.BOLOs.Where(x => x != null &&
+                x.Status == BOLOStatus.Active && string.IsNullOrWhiteSpace(x.LinkedWarrantID) &&
+                (x.KnownToAgencyIDs == null || !x.KnownToAgencyIDs.Contains(receivingAgencyID, StringComparer.OrdinalIgnoreCase))))
+            {
+                string sendingAgencyID = bolo.KnownToAgencyIDs?.FirstOrDefault();
+                if (ScheduleAlertDissemination(intelligence, IntelligenceAlertType.BOLO,
+                    bolo.ID, sendingAgencyID, receivingAgencyID, scheduledAt,
+                    settings, isMutualAid, "Shared because this agency was dispatched to the active incident."))
+                    scheduled++;
+            }
+            return scheduled;
+        }
+
         private void ProcessAlertDisseminations(LawEnforcementIntelligence intelligence, DateTime currentTime)
         {
             if (intelligence?.AlertDisseminations == null) return;
