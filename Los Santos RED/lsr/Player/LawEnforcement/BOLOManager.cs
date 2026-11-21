@@ -35,6 +35,20 @@ namespace LosSantosRED.lsr
                 .OrderByDescending(x => x.StopChanceInZone).ToList();
         }
 
+        // Operational BOLO queries must be scoped to the receiving agency. The
+        // unfiltered GetActive overload is retained for administrative/debug displays.
+        public IEnumerable<BOLORecord> GetActiveForAgency(LawEnforcementIntelligence intelligence,
+            DateTime currentTime, string agencyID)
+        {
+            if (intelligence == null || intelligence.BOLOs == null || string.IsNullOrWhiteSpace(agencyID))
+                return Enumerable.Empty<BOLORecord>();
+            intelligence.UpdateExpirations(currentTime);
+            return intelligence.BOLOs.Where(bolo => bolo != null && bolo.Status == BOLOStatus.Active &&
+                    bolo.KnownToAgencyIDs != null &&
+                    bolo.KnownToAgencyIDs.Contains(agencyID, StringComparer.OrdinalIgnoreCase))
+                .OrderByDescending(bolo => bolo.StopChanceInZone).ToList();
+        }
+
         public float GetVehicleStopChance(LawEnforcementIntelligence intelligence, DateTime currentTime,
             string zoneID, string plateNumber, string vehicleModel, string agencyID = null)
         {
