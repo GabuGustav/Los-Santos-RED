@@ -352,7 +352,8 @@ public class Business : GameLocation, ILocationSetupable, IRestableLocation, IIn
     protected override void OnSold()
     {
         Reset();
-        Player.Properties.RemoveOwnedLocation(this);
+        RemoveOwnership();
+        IsOwned = false;
         Player.BankAccounts.GiveMoney(CurrentSalesPrice, true);
         PlaySuccessSound();
         DisplayMessage("~g~Sold", $"You have sold {Name} for {CurrentSalesPrice.ToString("C0")}");
@@ -377,7 +378,7 @@ public class Business : GameLocation, ILocationSetupable, IRestableLocation, IIn
             ModItemToPayout = PossibleModItemPayouts.FirstOrDefault();
         }
         UpdateStoredData();
-        Player.Properties.AddOwnedLocation(this);
+        AddOwnership();
         AddInteractionItems(false);
         PlaySuccessSound();
         DisplayMessage("~g~Purchased", $"Thank you for purchasing {Name}");
