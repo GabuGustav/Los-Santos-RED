@@ -215,7 +215,8 @@ public class ResidenceOperationsDispatcher
         {
             if (!runtime.PerimeterSpawned && !DeployPerimeterTeam(intelligence, operation, runtime, manager, now, 2))
                 return;
-            manager.Advance(intelligence, operation.ID, PoliceOperationStage.Announcement, now);
+            if (!manager.Advance(intelligence, operation.ID, PoliceOperationStage.Announcement, now))
+                return;
             runtime.StageStartedAt = Game.GameTime;
             runtime.AnnouncementShown = true;
             Game.DisplaySubtitle("Police: We have an arrest warrant. Come out with your hands visible.", 5000);
@@ -279,8 +280,9 @@ public class ResidenceOperationsDispatcher
             runtime.Officers.RemoveAll(x => x == null || x.Pedestrian == null || !x.Pedestrian.Exists() || !x.Pedestrian.IsAlive);
             if (Player.IsBusted)
             {
-                manager.Advance(intelligence, operation.ID, PoliceOperationStage.Completed, now,
-                    "Subject apprehended during the residence raid.");
+                if (!manager.Advance(intelligence, operation.ID, PoliceOperationStage.Completed, now,
+                    "Subject apprehended during the residence raid."))
+                    return;
                 WarrantRecord warrant = intelligence.Warrants.FirstOrDefault(x =>
                     x != null && x.ID == operation.WarrantID);
                 if (warrant != null && warrant.Status == WarrantStatus.Active)
@@ -402,7 +404,8 @@ public class ResidenceOperationsDispatcher
                 return;
             if (IsPlayerAtResidence(runtime.Residence))
             {
-                manager.Advance(intelligence, operation.ID, PoliceOperationStage.Announcement, now);
+                if (!manager.Advance(intelligence, operation.ID, PoliceOperationStage.Announcement, now))
+                    return;
                 runtime.StageStartedAt = Game.GameTime;
                 runtime.AnnouncementShown = true;
                 Game.DisplaySubtitle("Police: We have a search warrant for these premises.", 5000);
@@ -466,8 +469,9 @@ public class ResidenceOperationsDispatcher
 
             if (Game.GameTime - runtime.StageStartedAt >= 10000)
             {
-                manager.Advance(intelligence, operation.ID, PoliceOperationStage.Completed, now,
-                    "Search warrant executed at the identified premises. This operation record does not imply that contraband was found.");
+                if (!manager.Advance(intelligence, operation.ID, PoliceOperationStage.Completed, now,
+                    "Search warrant executed at the identified premises. This operation record does not imply that contraband was found."))
+                    return;
                 WarrantRecord warrant = intelligence.Warrants.FirstOrDefault(x =>
                     x != null && x.ID == operation.WarrantID);
                 if (warrant != null && warrant.Status == WarrantStatus.Active)
