@@ -426,7 +426,7 @@ public class FIBSurveillanceDispatcher
             bool playerStationary = Player.IsInVehicle
                 ? Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
                     Player.CurrentVehicle.Vehicle.Speed <= 0.5f
-                : Player.Character.Exists() && Player.Character.Speed <= 0.5f;
+                : Player.Character != null && Player.Character.Exists() && Player.Character.Speed <= 0.5f;
 
             if (assignment.State == SurveillanceAssignmentState.Following &&
                 playerStationary && distance <= settings.SurveillanceMinDistance + 40f)
