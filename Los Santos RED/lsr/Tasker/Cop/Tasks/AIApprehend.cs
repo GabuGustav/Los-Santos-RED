@@ -96,6 +96,8 @@ public class AIApprehend : ComplexTask
     public bool IsTrafficStop { get; set; }
     public bool IsANPREvasionPursuit { get; set; }
     public bool IsWarrantApprehension { get; set; }
+    public string WarrantID { get; set; }
+    public string WarrantOfficerID { get; set; }
     private bool IsCancelled;
     private bool HasIssuedTrafficStopExit;
     private TrafficStopStage CurrentTrafficStopStage = TrafficStopStage.Approaching;
@@ -642,7 +644,10 @@ public class AIApprehend : ComplexTask
         if (activeWarrant != null &&
             modPlayer.LawEnforcementIntelligenceManager?.WarrantManager?.CanAuthorizeArrest(activeWarrant) == true)
         {
-            modPlayer.BeginWarrantApprehension(activeWarrant.ID);
+            string officerID = (Ped as Cop)?.Pedestrian?.Handle.ToString();
+            modPlayer.BeginWarrantApprehension(activeWarrant.ID, officerID);
+            WarrantID = activeWarrant.ID;
+            WarrantOfficerID = officerID;
             IsTrafficStop = false;
             IsWarrantApprehension = true;
             CurrentSubTask = SubTask.None;
@@ -924,7 +929,10 @@ public class AIApprehend : ComplexTask
     public override void Stop()
     {
         IsCancelled = true;
-        (Player as Mod.Player)?.ButtonPrompts?.RemovePrompts("TrafficStop");
+        Mod.Player modPlayer = Player as Mod.Player;
+        if (IsWarrantApprehension && OtherTarget != null && !OtherTarget.IsBusted)
+            modPlayer?.CancelWarrantApprehension(WarrantID, WarrantOfficerID);
+        modPlayer?.ButtonPrompts?.RemovePrompts("TrafficStop");
     }
     private void FootChaseLoop()
     {
