@@ -348,8 +348,17 @@ public class ResidenceOperationsDispatcher
     {
         if (runtime == null) return;
         foreach (Cop officer in runtime.Officers.Where(x => x != null).ToList())
-            if (officer.Pedestrian != null && officer.Pedestrian.Exists())
-                officer.Pedestrian.Delete();
+        {
+            try
+            {
+                if (officer.Pedestrian != null && officer.Pedestrian.Exists())
+                    officer.Pedestrian.Delete();
+            }
+            catch (Exception ex)
+            {
+                EntryPoint.WriteToConsole("Residence officer cleanup failed: " + ex);
+            }
+        }
         runtime.Officers.Clear();
     }
 
@@ -558,8 +567,15 @@ public class ResidenceOperationsDispatcher
             return;
         foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null).ToList())
         {
-            if (ped.Pedestrian != null && ped.Pedestrian.Exists())
-                ped.Pedestrian.Delete();
+            try
+            {
+                if (ped.Pedestrian != null && ped.Pedestrian.Exists())
+                    ped.Pedestrian.Delete();
+            }
+            catch (Exception ex)
+            {
+                EntryPoint.WriteToConsole("Partial residence spawn cleanup failed: " + ex);
+            }
         }
     }
 
@@ -632,7 +648,17 @@ public class ResidenceOperationsDispatcher
     {
         if (runtime == null) return;
         foreach (Cop officer in runtime.Officers.Where(x => x != null).ToList())
-            if (officer.Pedestrian != null && officer.Pedestrian.Exists()) officer.Pedestrian.Delete();
+        {
+            try
+            {
+                if (officer.Pedestrian != null && officer.Pedestrian.Exists())
+                    officer.Pedestrian.Delete();
+            }
+            catch (Exception ex)
+            {
+                EntryPoint.WriteToConsole("Residence operation runtime cleanup failed: " + ex);
+            }
+        }
         runtime.Officers.Clear();
     }
 }
