@@ -143,9 +143,43 @@ namespace LosSantosRED.lsr
                 LocationName = locationName,
                 Notes = notes
             };
-            return source == IntelligenceSource.Surveillance
-                ? RecordOrRefreshSurveillanceObservation(observation)
-                : RecordObservation(observation);
+            Normalize();
+            bool recorded = RecordOrRefreshObservation(observation);
+            string residenceTargetID = "RESIDENCE:" + residenceID;
+            IntelligenceObservation storedObservation = Observations.FirstOrDefault(x => x != null &&
+                x.Source == source && x.SourceID == sourceID &&
+                x.EvidenceType == IntelligenceEvidenceType.VisualSighting &&
+                string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
+                x.IsKnownToPolice && x.IsVerified);
+
+            if (storedObservation != null)
+            {
+                float inferredConfidence = NormalizeProbability(storedObservation.Confidence * 0.9f);
+                foreach (WarrantRecord warrant in Warrants.Where(x => x != null &&
+                    x.Status == WarrantStatus.Active &&
+                    (x.Type == WarrantType.Arrest || x.Type == WarrantType.Bench ||
+                     x.Type == WarrantType.ProbationParole || x.Type == WarrantType.Extradition) &&
+                    storedObservation.ObservedAt >= x.IssuedAt))
+                {
+                    if (string.IsNullOrWhiteSpace(warrant.SuspectedResidenceID) ||
+                        !string.Equals(warrant.SuspectedResidenceID, residenceID, StringComparison.OrdinalIgnoreCase))
+                    {
+                        warrant.SuspectedResidenceID = residenceID;
+                        warrant.ResidenceConfidence = inferredConfidence;
+                    }
+                    else if (inferredConfidence > warrant.ResidenceConfidence)
+                    {
+                        warrant.ResidenceConfidence = inferredConfidence;
+                    }
+                    if (warrant.EvidenceObservationIDs == null)
+                        warrant.EvidenceObservationIDs = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(storedObservation.ID) &&
+                        !warrant.EvidenceObservationIDs.Contains(storedObservation.ID))
+                        warrant.EvidenceObservationIDs.Add(storedObservation.ID);
+                }
+                LastUpdatedAt = storedObservation.ObservedAt;
+            }
+            return recorded;
         }
 
         public bool RecordPreviouslyDrivenVehicle(DateTime observedAt, string officerID,
@@ -214,14 +248,14 @@ namespace LosSantosRED.lsr
             return recorded;
         }
 
-        private bool RecordOrRefreshSurveillanceObservation(IntelligenceObservation observation)
+        private bool RecordOrRefreshObservation(IntelligenceObservation observation)
         {
             if (observation == null || observation.ObservedAt == DateTime.MinValue)
                 return false;
             if (Observations == null)
                 Observations = new List<IntelligenceObservation>();
             IntelligenceObservation previous = Observations
-                .Where(x => x != null && x.Source == IntelligenceSource.Surveillance &&
+                .Where(x => x != null && x.Source == observation.Source &&
                     x.SourceID == observation.SourceID && x.EvidenceType == observation.EvidenceType &&
                     x.TargetType == observation.TargetType && x.TargetID == observation.TargetID &&
                     x.Notes == observation.Notes)
@@ -268,7 +302,7 @@ namespace LosSantosRED.lsr
             string locationID = null, string locationName = null)
         {
             string sourceID = "FIB_SURVEILLANCE:" + (teamID ?? "UNKNOWN");
-            bool recorded = RecordOrRefreshSurveillanceObservation(new IntelligenceObservation
+            bool recorded = RecordOrRefreshObservation(new IntelligenceObservation
             {
                 ObservedAt = observedAt,
                 Source = IntelligenceSource.Surveillance,
