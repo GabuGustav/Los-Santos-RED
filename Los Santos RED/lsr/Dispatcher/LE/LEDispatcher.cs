@@ -1602,6 +1602,20 @@ public class LEDispatcher
         {
             return false;
         }
+
+        // A unit selected from a different agency is responding to the active incident.
+        // Queue the player's currently active alerts for that agency; they become visible
+        // only after the configured mutual-aid relay delay has elapsed.
+        if (World.TotalWantedLevel > 0 && Player is Mod.Player modPlayer &&
+            modPlayer.LawEnforcementIntelligence != null)
+        {
+            LawEnforcementIntelligenceSettings intelligenceSettings =
+                Settings.SettingsManager.LawEnforcementIntelligenceSettings;
+            modPlayer.LawEnforcementIntelligenceManager?.ScheduleActiveAlertsForAgency(
+                modPlayer.LawEnforcementIntelligence, Agency.ID, modPlayer.CurrentDateTime,
+                intelligenceSettings, true);
+        }
+
         IsOffDutySpawn = RandomItems.RandomPercent(Agency.OffDutyDispatchPercent) && World.TotalWantedLevel == 0 && Agency.OffDutyVehicles != null && Agency.OffDutyVehicles.Any() && Agency.OffDutyPersonnel != null && Agency.OffDutyPersonnel.Any();
         if (SpawnLocation.IsWater)
         {
