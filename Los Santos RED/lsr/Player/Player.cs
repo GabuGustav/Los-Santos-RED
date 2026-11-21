@@ -2570,12 +2570,32 @@ namespace Mod
             ClipsetManager.Update();
             IsShooting = RecentlyShot;
         }
+        private void RecordPlayerVehicleExit(VehicleExt vehicle)
+        {
+            if (vehicle == null || vehicle.Vehicle == null || !vehicle.Vehicle.Exists() ||
+                LawEnforcementIntelligence == null)
+                return;
+            string registrationID = vehicle.CarPlate?.RegistrationId;
+            string plate = vehicle.CarPlate?.PlateNumber ?? vehicle.Vehicle.LicensePlate;
+            string vehicleID = !string.IsNullOrWhiteSpace(registrationID)
+                ? "REG:" + registrationID.Trim().ToUpperInvariant()
+                : !string.IsNullOrWhiteSpace(plate)
+                    ? "PLATE:" + plate.Trim().ToUpperInvariant()
+                    : null;
+            if (string.IsNullOrWhiteSpace(vehicleID))
+                return;
+            LawEnforcementIntelligence.RecordVehicleAssociation(CurrentDateTime, vehicleID,
+                VehicleAssociationType.PreviouslyDriven, "PLAYER_VEHICLE_EXIT", 1f, false,
+                "Player exited this vehicle; this activity record is not automatically known to police.");
+        }
+
         private void UpdateCurrentVehicle() //should this be public?
         {
             bool IsGettingIntoVehicle = Game.LocalPlayer.Character.IsGettingIntoVehicle;
             bool IsInVehicle = Game.LocalPlayer.Character.IsInAnyVehicle(false);
             if (!IsInVehicle && !IsGettingIntoVehicle)
             {
+                RecordPlayerVehicleExit(CurrentVehicle);
                 PreviousVehicle = CurrentVehicle;
                 CurrentVehicle = null;
                 return;
