@@ -507,6 +507,139 @@ public class AIApprehend : ComplexTask
             NativeFunction.Natives.TASK_LOOK_AT_ENTITY(Ped.Pedestrian, target, -1, 2048, 3);
         }
     }
+    private void UpdateTrafficStopInteraction()
+    {
+        Mod.Player modPlayer = Player as Mod.Player;
+        if (modPlayer == null || modPlayer.ButtonPrompts == null ||
+            !Ped.Pedestrian.Exists() || OtherTarget == null || !OtherTarget.Pedestrian.Exists())
+            return;
+
+        if (CurrentTrafficStopStage == TrafficStopStage.Approaching && !Ped.IsInVehicle)
+        {
+            Entity contactTarget = Player.IsInVehicle && Player.CurrentVehicle != null &&
+                Player.CurrentVehicle.Vehicle.Exists()
+                ? (Entity)Player.CurrentVehicle.Vehicle : OtherTarget.Pedestrian;
+            if (Ped.Pedestrian.DistanceTo2D(contactTarget) <= 3.5f)
+            {
+                CurrentTrafficStopStage = TrafficStopStage.AwaitingCompliance;
+                GameTimeTrafficStopStageStarted = Game.GameTime;
+                Game.DisplaySubtitle("The officer asks you to present your driver's license and vehicle documents.");
+            }
+        }
+
+        if (CurrentTrafficStopStage == TrafficStopStage.AwaitingCompliance)
+        {
+            Entity contactTarget = Player.IsInVehicle && Player.CurrentVehicle != null &&
+                Player.CurrentVehicle.Vehicle.Exists()
+                ? (Entity)Player.CurrentVehicle.Vehicle : OtherTarget.Pedestrian;
+            if (Ped.Pedestrian.DistanceTo2D(contactTarget) <= 5.0f)
+            {
+                modPlayer.ButtonPrompts.AttemptAddPrompt("TrafficStop", "Present documents / cooperate",
+                    "TrafficStopComply", Settings.SettingsManager.KeySettings.InteractPositiveOrYes, 1,
+                    () => RespondToTrafficStop(true));
+                modPlayer.ButtonPrompts.AttemptAddPrompt("TrafficStop", "Refuse / flee",
+                    "TrafficStopRefuse", Settings.SettingsManager.KeySettings.InteractNegativeOrNo, 2,
+                    () => RespondToTrafficStop(false));
+            }
+            else
+                modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
+        }
+        else
+            modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
+
+        if (CurrentTrafficStopStage == TrafficStopStage.Checking &&
+            Game.GameTime - GameTimeTrafficStopStageStarted >= 2000)
+            ResolveTrafficStopChecks(modPlayer);
+        else if (CurrentTrafficStopStage == TrafficStopStage.Resolving &&
+            Game.GameTime - GameTimeTrafficStopStageStarted >= 2500)
+        {
+            CurrentTrafficStopStage = TrafficStopStage.Completed;
+            GameTimeTrafficStopStageStarted = Game.GameTime;
+        }
+        else if (CurrentTrafficStopStage == TrafficStopStage.Completed)
+        {
+            modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
+            if (Ped.IsInVehicle || !CopsVehicle.Exists())
+            {
+                IsTrafficStop = false;
+                Ped.CurrentTask = null;
+            }
+        }
+    }
+
+    private void RespondToTrafficStop(bool comply)
+    {
+        Mod.Player modPlayer = Player as Mod.Player;
+        if (modPlayer == null || CurrentTrafficStopStage != TrafficStopStage.AwaitingCompliance)
+            return;
+
+        modPlayer.ButtonPrompts.RemovePrompts("TrafficStop");
+        if (!comply)
+        {
+            Game.DisplaySubtitle("The officer orders you to remain at the scene and comply with the traffic stop.");
+            IsTrafficStop = false;
+            IsANPREvasionPursuit = true;
+            CurrentSubTask = SubTask.None;
+            CurrentTask = Task.Nothing;
+            GameTimeLastRan = 0;
+            return;
+        }
+
+        CurrentTrafficStopStage = TrafficStopStage.Checking;
+        GameTimeTrafficStopStageStarted = Game.GameTime;
+        Game.DisplaySubtitle("The officer checks your identification, driver's license, vehicle registration and police records.");
+    }
+
+    private void ResolveTrafficStopChecks(Mod.Player modPlayer)
+    {
+        string zoneID = modPlayer.CurrentLocation?.CurrentZone?.InternalGameName;
+        string agencyID = (Ped as Cop)?.AssignedAgency?.ID;
+        WarrantRecord activeWarrant = modPlayer.LawEnforcementWarrantsEnabled
+            ? modPlayer.LawEnforcementIntelligenceManager?.WarrantManager?.FindActive(
+                modPlayer.LawEnforcementIntelligence, agencyID, zoneID)
+            : null;
+
+        if (activeWarrant != null &&
+            modPlayer.LawEnforcementIntelligenceManager?.WarrantManager?.CanAuthorizeArrest(activeWarrant) == true)
+        {
+            modPlayer.BeginWarrantApprehension(activeWarrant.ID);
+            IsTrafficStop = false;
+            IsWarrantApprehension = true;
+            CurrentSubTask = SubTask.None;
+            CurrentTask = Task.Nothing;
+            GameTimeLastRan = 0;
+            Game.DisplaySubtitle("Dispatch confirms an active arrest warrant. The officer moves to take you into custody.");
+            return;
+        }
+
+        VehicleExt stoppedVehicle = modPlayer.CurrentVehicle;
+        bool missingDriversLicense = !modPlayer.Licenses.HasDriversLicense;
+        bool trafficViolation = modPlayer.Violations?.TrafficViolations?.IsViolatingAnyTrafficLaws == true;
+        bool registrationIssue = stoppedVehicle != null && stoppedVehicle.Vehicle.Exists() &&
+            (!stoppedVehicle.HasOriginalPlate || stoppedVehicle.CarPlate == null ||
+             stoppedVehicle.OriginalLicensePlate == null ||
+             !string.Equals(stoppedVehicle.Vehicle.LicensePlate, stoppedVehicle.CarPlate.PlateNumber,
+                 StringComparison.OrdinalIgnoreCase));
+
+        if (missingDriversLicense || trafficViolation || registrationIssue)
+        {
+            List<string> reasons = new List<string>();
+            if (missingDriversLicense) reasons.Add("no driver's license on record");
+            if (trafficViolation) reasons.Add("a traffic violation");
+            if (registrationIssue) reasons.Add("a registration or plate discrepancy");
+            EntryPoint.WriteToConsole("TRAFFIC STOP: " + string.Join("; ", reasons) + ".");
+            Game.DisplaySubtitle("The officer records " + string.Join(", ", reasons) + " and advises you of the issue.");
+        }
+        else
+        {
+            EntryPoint.WriteToConsole("TRAFFIC STOP: Driver and vehicle checks completed; no further action required.");
+            Game.DisplaySubtitle("The officer completes the checks and releases you. You are free to go.");
+        }
+
+        CurrentTrafficStopStage = TrafficStopStage.Resolving;
+        GameTimeTrafficStopStageStarted = Game.GameTime;
+    }
+
     private void FootChase()
     {
         if (OtherTarget != null && OtherTarget.Pedestrian.Exists())
