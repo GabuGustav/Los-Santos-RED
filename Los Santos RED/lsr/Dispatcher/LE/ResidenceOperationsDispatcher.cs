@@ -144,7 +144,7 @@ public class ResidenceOperationsDispatcher
             .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt))
         {
             Residence searchResidence = FindResidence(searchWarrant.SuspectedResidenceID);
-            if (searchResidence == null)
+            if (searchResidence == null || GetSearchPositions(searchResidence).Count == 0)
                 continue;
             string searchResidenceID = searchResidence.ResidenceID.ToString();
             string searchInvestigationID = FindInvestigationID(intelligence, searchWarrant.ID);
@@ -552,11 +552,8 @@ public class ResidenceOperationsDispatcher
 
     private List<Vector3> GetSearchPositions(Residence residence)
     {
-        List<Vector3> positions = residence?.ResidenceInterior?.AllInteractPoints?.Where(x => x != null && x.Position != Vector3.Zero)
+        return residence?.ResidenceInterior?.AllInteractPoints?.Where(x => x != null && x.Position != Vector3.Zero)
             .Select(x => x.Position).Distinct().Take(2).ToList() ?? new List<Vector3>();
-        if (positions.Count == 0 && residence != null && residence.EntrancePosition != Vector3.Zero)
-            positions.Add(residence.EntrancePosition);
-        return positions;
     }
 
     private Residence GetCurrentResidence()
