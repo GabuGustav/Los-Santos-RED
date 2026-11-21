@@ -52,7 +52,7 @@ namespace LosSantosRED.lsr
                 string.IsNullOrWhiteSpace(decidingAgencyID) || decidedAt == DateTime.MinValue ||
                 (approve && !Enum.IsDefined(typeof(InvestigationAccessScope), approvedScope)) ||
                 (grantExpiresAt.HasValue && grantExpiresAt.Value <= decidedAt)) return false;
-            DateTime? effectiveGrantExpiry = approve ? (grantExpiresAt ?? decidedAt.AddDays(30)) : null;
+            DateTime? effectiveGrantExpiry = approve ? (DateTime?)(grantExpiresAt ?? decidedAt.AddDays(30)) : null;
             intelligence.Normalize();
             InvestigationAccessRequest request = intelligence.AccessRequests.FirstOrDefault(x =>
                 x != null && string.Equals(x.ID, requestID, StringComparison.OrdinalIgnoreCase));
