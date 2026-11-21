@@ -231,6 +231,7 @@ namespace Mod
 
             List<string> ownedBusinessIDs = Properties == null ? new List<string>() : Properties.PropertyList
                 .OfType<Business>()
+                .Where(x => x != null && x.IsOwned)
                 .Select(x => string.Format(System.Globalization.CultureInfo.InvariantCulture,
                     "BUSINESS:{0}:{1:0.00}:{2:0.00}:{3:0.00}", x.Name, x.EntrancePosition.X, x.EntrancePosition.Y, x.EntrancePosition.Z))
                 .ToList();
