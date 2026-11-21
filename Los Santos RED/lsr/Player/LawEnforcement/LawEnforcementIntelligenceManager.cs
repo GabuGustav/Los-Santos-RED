@@ -29,15 +29,17 @@ namespace LosSantosRED.lsr
                 x.State != SurveillanceAssignmentState.Completed);
             int activeOperations = intelligence.PoliceOperations.Count(x => x != null &&
                 x.Stage != PoliceOperationStage.Completed && x.Stage != PoliceOperationStage.Aborted);
+            int pendingRelays = intelligence.AlertDisseminations.Count(x => x != null &&
+                x.Status == AlertDisseminationStatus.Pending);
             InvestigationRecord current = intelligence.Investigations
                 .Where(x => x != null && x.Stage != InvestigationStage.Closed &&
                     x.Stage != InvestigationStage.Suspended)
                 .OrderByDescending(x => x.HeatLevel).FirstOrDefault();
             return string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                "LE Intelligence | Observations: {0} (Police-known: {1}) | Investigations: {2} | Stage: {3} | Warrants: {4} | BOLOs: {5} | FIB teams: {6} | Operations: {7}",
+                "LE Intelligence | Observations: {0} (Police-known: {1}) | Investigations: {2} | Stage: {3} | Warrants: {4} | BOLOs: {5} | FIB teams: {6} | Operations: {7} | Pending alert relays: {8}",
                 intelligence.Observations.Count, policeObservations, intelligence.Investigations.Count,
                 current == null ? "None" : current.Stage.ToString(), activeWarrants, activeBOLOs,
-                activeSurveillance, activeOperations);
+                activeSurveillance, activeOperations, pendingRelays);
         }
 
         public bool TryAssignSurveillance(LawEnforcementIntelligence intelligence, string investigationID,
@@ -287,6 +289,10 @@ namespace LosSantosRED.lsr
                 intelligence.PoliceOperations.RemoveAll(x => x == null ||
                     ((x.Stage == PoliceOperationStage.Completed || x.Stage == PoliceOperationStage.Aborted) &&
                      x.LastUpdatedAt != DateTime.MinValue && x.LastUpdatedAt < cutoff));
+            if (intelligence.AlertDisseminations != null)
+                intelligence.AlertDisseminations.RemoveAll(x => x == null ||
+                    (x.Status != AlertDisseminationStatus.Pending &&
+                     x.ScheduledAt != DateTime.MinValue && x.ScheduledAt < cutoff));
         }
 
         public void ResetClock()
