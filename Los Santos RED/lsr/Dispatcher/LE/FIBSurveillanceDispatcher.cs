@@ -500,12 +500,29 @@ public class FIBSurveillanceDispatcher
                 .FirstOrDefault(x => x != null && x.ID == pair.Key);
             if (assignment != null && assignment.State != SurveillanceAssignmentState.Completed)
             {
-                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(assignment, SurveillanceAssignmentState.Disengaging, now);
+                if (assignment.State != SurveillanceAssignmentState.Disengaging &&
+                    assignment.State != SurveillanceAssignmentState.Compromised)
+                    (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                        assignment, SurveillanceAssignmentState.Disengaging, now);
+                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                    assignment, SurveillanceAssignmentState.Completed, now);
             }
             CleanupTeam(pair.Value);
-            if (assignment != null)
-                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(assignment, SurveillanceAssignmentState.Completed, now);
             RuntimeTeams.Remove(pair.Key);
+        }
+
+        // Also close persisted assignments that have no live runtime entities to clean up.
+        foreach (SurveillanceAssignment assignment in intelligence.SurveillanceAssignments.Where(x => x != null &&
+            x.State != SurveillanceAssignmentState.Available &&
+            x.State != SurveillanceAssignmentState.Completed).ToList())
+        {
+            if (assignment.State != SurveillanceAssignmentState.Disengaging &&
+                assignment.State != SurveillanceAssignmentState.Compromised)
+                (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                    assignment, SurveillanceAssignmentState.Disengaging, now);
+            (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.Transition(
+                assignment, SurveillanceAssignmentState.Completed, now);
+            assignment.ReplacementRequired = false;
         }
     }
 
