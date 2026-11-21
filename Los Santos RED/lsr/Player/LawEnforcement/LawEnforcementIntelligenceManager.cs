@@ -76,7 +76,6 @@ namespace LosSantosRED.lsr
         {
             if (intelligence == null || currentTime == DateTime.MinValue || settings == null) return;
             settings.Normalize();
-            intelligence.Normalize();
 
             // Do not run against a clock that has moved backwards (for example, a save load).
             if (LastUpdateAt != DateTime.MinValue && currentTime < LastUpdateAt)
@@ -85,6 +84,7 @@ namespace LosSantosRED.lsr
                 currentTime - LastUpdateAt < TimeSpan.FromMilliseconds(settings.InvestigationUpdateInterval))
                 return;
 
+            intelligence.Normalize();
             if (settings.EnableWarrants)
                 WarrantManager.UpdateExpirations(intelligence, currentTime);
             if (settings.EnableBOLOSystem)
