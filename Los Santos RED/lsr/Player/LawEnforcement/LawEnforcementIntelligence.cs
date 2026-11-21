@@ -365,9 +365,9 @@ namespace LosSantosRED.lsr
             if (normalizedPlate == null && normalizedRegistration == null)
                 return false;
 
-            string vehicleID = normalizedPlate != null
-                ? "PLATE:" + normalizedPlate
-                : "REG:" + normalizedRegistration;
+            string vehicleID = normalizedRegistration != null
+                ? "REG:" + normalizedRegistration
+                : "PLATE:" + normalizedPlate;
             string sourceID = "ANPR:" + (officerID ?? "UNKNOWN");
             bool recorded = RecordObservation(new IntelligenceObservation
             {
