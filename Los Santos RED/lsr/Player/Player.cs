@@ -2097,6 +2097,7 @@ namespace Mod
         {
             BeingArrested = true;
             ResolveWarrantApprehension();
+            CriminalHistory?.ResolveLawEnforcementBOLO();
             if (!IsBusted)
             {
                 OnPlayerBusted();
