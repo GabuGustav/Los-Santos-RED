@@ -198,6 +198,8 @@ namespace Mod
         public CriminalHistory CriminalHistory { get; private set; }
         public LawEnforcementIntelligence LawEnforcementIntelligence { get; set; }
         public LawEnforcementIntelligenceManager LawEnforcementIntelligenceManager { get; private set; }
+        public bool LawEnforcementWarrantsEnabled =>
+            Settings?.SettingsManager?.LawEnforcementIntelligenceSettings?.EnableWarrants ?? true;
         public string LawEnforcementIntelligenceDebugSummary =>
             LawEnforcementIntelligenceManager?.GetDebugSummary(LawEnforcementIntelligence) ?? "LE Intelligence: unavailable";
 
