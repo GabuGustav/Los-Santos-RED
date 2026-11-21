@@ -65,7 +65,7 @@ public class CopBrain : PedBrain
             {
                 VehicleExt observedVehicle = Player.IsInVehicle ? Player.CurrentVehicle : null;
                 bool hasObservedVehicle = observedVehicle != null && observedVehicle.Vehicle.Exists() &&
-                    observedVehicle.Vehicle.Driver.Exists() &&
+                    observedVehicle.Vehicle.Driver != null && observedVehicle.Vehicle.Driver.Exists() &&
                     observedVehicle.Vehicle.Driver.Handle == Player.Character.Handle;
                 string vehicleID = null;
                 string vehicleDescription = null;
