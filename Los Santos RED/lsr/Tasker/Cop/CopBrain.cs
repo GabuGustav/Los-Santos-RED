@@ -86,6 +86,17 @@ public class CopBrain : PedBrain
                     modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
                     modPlayer.CurrentLocation?.CurrentZone?.InternalGameName);
 
+                Residence observedResidence = (modPlayer.CurrentLocation?.CurrentInterior as ResidenceInterior)?.Residence;
+                if (observedResidence != null && observedResidence.ResidenceID >= 0)
+                {
+                    modPlayer.LawEnforcementIntelligence.RecordResidenceObservation(
+                        modPlayer.CurrentDateTime, IntelligenceSource.PatrolOfficer,
+                        "COP:" + Cop.Pedestrian.Handle, observedResidence.ResidenceID.ToString(),
+                        observedResidence.Name, Player.Position.X, Player.Position.Y, Player.Position.Z,
+                        modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
+                        modPlayer.CurrentLocation?.CurrentZone?.InternalGameName, 0.9f);
+                }
+
                 if (hasObservedVehicle && !string.IsNullOrWhiteSpace(vehicleID))
                 {
                     LastObservedPlayerWasDriving = true;
