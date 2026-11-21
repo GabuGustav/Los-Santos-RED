@@ -315,7 +315,7 @@ public class CopBrain : PedBrain
         // handled by the separate on-foot identification encounter path below.
         float stopChance = modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.GetVehicleStopChance(
             modPlayer.LawEnforcementIntelligence, modPlayer.CurrentDateTime, zoneID,
-            plateNumber, Player.CurrentVehicle.FullName(false)) ?? 0f;
+            plateNumber, Player.CurrentVehicle.FullName(false), Cop.AssignedAgency?.ID) ?? 0f;
         if (stopChance <= 0.0f || !RandomItems.RandomPercent(stopChance * 100.0f))
             return false;
 
@@ -650,7 +650,8 @@ public class CopBrain : PedBrain
 
         float chance = modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.GetPersonRecognitionChance(modPlayer.LawEnforcementIntelligence, modPlayer.CurrentDateTime,
                 modPlayer.LawEnforcementIntelligence?.SubjectID,
-                modPlayer.CurrentLocation?.CurrentZone?.InternalGameName) ?? 0f;
+                modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
+                Cop.AssignedAgency?.ID) ?? 0f;
         if (chance > 0f && RandomItems.RandomPercent(chance * 100f))
             WasRecognizedByPersonBOLO = true;
     }
