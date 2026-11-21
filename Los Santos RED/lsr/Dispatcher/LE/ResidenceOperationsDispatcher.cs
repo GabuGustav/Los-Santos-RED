@@ -133,6 +133,11 @@ public class ResidenceOperationsDispatcher
                     x.Priority >= WarrantPriority.High)
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt))
             {
+                // The issuing agency inherently knows its own warrant. A fallback FIB
+                // team may act only after the warrant has actually been disseminated to FIB.
+                if (GetAgencyForWarrant(intelligence, arrestWarrant.ID) == null)
+                    continue;
+
                 Residence raidResidence = FindResidence(arrestWarrant.SuspectedResidenceID);
                 if (raidResidence == null ||
                     !IsPlayerBelievedHome(intelligence, raidResidence, now))
@@ -163,6 +168,10 @@ public class ResidenceOperationsDispatcher
                 x.Priority >= WarrantPriority.Moderate)
             .OrderByDescending(x => x.Priority).ThenBy(x => x.IssuedAt))
         {
+            // Do not let a unit execute a search warrant it has not received.
+            if (GetAgencyForWarrant(intelligence, searchWarrant.ID) == null)
+                continue;
+
             Residence searchResidence = FindResidence(searchWarrant.SuspectedResidenceID);
             if (searchResidence == null || GetSearchPositions(searchResidence).Count == 0)
                 continue;
@@ -602,13 +611,23 @@ public class ResidenceOperationsDispatcher
 
     private Agency GetAgencyForWarrant(LawEnforcementIntelligence intelligence, string warrantID)
     {
-        WarrantRecord warrant = intelligence.Warrants.FirstOrDefault(x => x != null && x.ID == warrantID);
-        Agency agency = string.IsNullOrWhiteSpace(warrant?.IssuingAgencyID)
+        WarrantRecord warrant = intelligence?.Warrants?.FirstOrDefault(x => x != null && x.ID == warrantID);
+        if (warrant == null)
+            return null;
+
+        Agency issuingAgency = string.IsNullOrWhiteSpace(warrant.IssuingAgencyID)
             ? null : Agencies?.GetAgency(warrant.IssuingAgencyID);
-        if (agency?.Personnel != null && agency.Personnel.Any(x => x != null && !x.IsAnimal))
-            return agency;
+        if (issuingAgency?.Personnel != null &&
+            issuingAgency.Personnel.Any(x => x != null && !x.IsAnimal))
+            return issuingAgency;
+
+        // FIB is a tactical fallback, not a globally omniscient agency. It can only
+        // execute this warrant after the alert relay has added FIB to the recipient list.
         Agency fib = Agencies?.GetAgency("FIB");
-        return fib?.Personnel != null && fib.Personnel.Any(x => x != null && !x.IsAnimal) ? fib : agency;
+        bool fibHasReceivedWarrant = warrant.KnownToAgencyIDs != null &&
+            warrant.KnownToAgencyIDs.Contains("FIB", StringComparer.OrdinalIgnoreCase);
+        return fibHasReceivedWarrant && fib?.Personnel != null &&
+            fib.Personnel.Any(x => x != null && !x.IsAnimal) ? fib : null;
     }
 
     private List<Vector3> GetSearchPositions(Residence residence)
