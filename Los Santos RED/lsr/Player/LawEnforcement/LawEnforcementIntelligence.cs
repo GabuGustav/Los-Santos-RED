@@ -20,6 +20,16 @@ namespace LosSantosRED.lsr
         public List<PoliceOperationRecord> PoliceOperations { get; set; } = new List<PoliceOperationRecord>();
         public List<VehicleAssociationRecord> VehicleAssociations { get; set; } = new List<VehicleAssociationRecord>();
 
+        // Use registration identity before the displayed plate so plate changes do not split one vehicle across records.
+        public static string GetVehicleIdentity(string registrationID, string plateNumber)
+        {
+            if (!string.IsNullOrWhiteSpace(registrationID))
+                return "REG:" + registrationID.Trim().ToUpperInvariant();
+            if (!string.IsNullOrWhiteSpace(plateNumber))
+                return "PLATE:" + plateNumber.Trim().ToUpperInvariant();
+            return null;
+        }
+
         public LawEnforcementIntelligence Copy()
         {
             LawEnforcementIntelligence copy = new LawEnforcementIntelligence
