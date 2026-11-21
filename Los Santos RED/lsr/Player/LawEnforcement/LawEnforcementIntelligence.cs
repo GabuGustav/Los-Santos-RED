@@ -455,12 +455,12 @@ namespace LosSantosRED.lsr
                 return recorded;
 
             IntelligenceObservation nearbySighting = Observations
-                .Where(x => x != null && x.IsKnownToPolice && x.IsVerified &&
-                    x.TargetType == IntelligenceTargetType.Person &&
-                    string.Equals(x.TargetID, SubjectID, StringComparison.OrdinalIgnoreCase) &&
-                    (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
-                    x.ObservedAt <= observedAt && observedAt - x.ObservedAt <= TimeSpan.FromSeconds(30))
-                .OrderByDescending(x => x.ObservedAt)
+                .Where(candidate => candidate != null && candidate.IsKnownToPolice && candidate.IsVerified &&
+                    candidate.TargetType == IntelligenceTargetType.Person &&
+                    string.Equals(candidate.TargetID, SubjectID, StringComparison.OrdinalIgnoreCase) &&
+                    (candidate.Source == IntelligenceSource.PatrolOfficer || candidate.Source == IntelligenceSource.Surveillance) &&
+                    candidate.ObservedAt <= observedAt && observedAt - candidate.ObservedAt <= TimeSpan.FromSeconds(30))
+                .OrderByDescending(candidate => candidate.ObservedAt)
                 .FirstOrDefault(sighting =>
                 {
                     float dx = sighting.PositionX - x;
