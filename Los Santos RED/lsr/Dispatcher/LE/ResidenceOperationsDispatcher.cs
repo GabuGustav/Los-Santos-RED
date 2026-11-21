@@ -621,13 +621,26 @@ public class ResidenceOperationsDispatcher
             issuingAgency.Personnel.Any(x => x != null && !x.IsAnimal))
             return issuingAgency;
 
-        // FIB is a tactical fallback, not a globally omniscient agency. It can only
-        // execute this warrant after the alert relay has added FIB to the recipient list.
+        // FIB is a preferred tactical fallback, but it can only act after receiving
+        // the alert. Other recipient agencies may execute the same cross-jurisdiction warrant.
+        IEnumerable<string> recipients = warrant.KnownToAgencyIDs ??
+            Enumerable.Empty<string>();
         Agency fib = Agencies?.GetAgency("FIB");
-        bool fibHasReceivedWarrant = warrant.KnownToAgencyIDs != null &&
-            warrant.KnownToAgencyIDs.Contains("FIB", StringComparer.OrdinalIgnoreCase);
-        return fibHasReceivedWarrant && fib?.Personnel != null &&
-            fib.Personnel.Any(x => x != null && !x.IsAnimal) ? fib : null;
+        if (recipients.Contains("FIB", StringComparer.OrdinalIgnoreCase) &&
+            fib?.Personnel != null && fib.Personnel.Any(x => x != null && !x.IsAnimal))
+            return fib;
+
+        foreach (string recipientID in recipients.Where(x =>
+            !string.IsNullOrWhiteSpace(x) &&
+            !string.Equals(x, warrant.IssuingAgencyID, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(x, "FIB", StringComparison.OrdinalIgnoreCase)))
+        {
+            Agency recipient = Agencies?.GetAgency(recipientID);
+            if (recipient?.Personnel != null &&
+                recipient.Personnel.Any(x => x != null && !x.IsAnimal))
+                return recipient;
+        }
+        return null;
     }
 
     private List<Vector3> GetSearchPositions(Residence residence)
