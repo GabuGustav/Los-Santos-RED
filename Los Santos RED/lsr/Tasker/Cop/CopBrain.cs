@@ -73,10 +73,10 @@ public class CopBrain : PedBrain
                 {
                     string plate = observedVehicle.CarPlate?.PlateNumber ?? observedVehicle.Vehicle.LicensePlate;
                     string registrationID = observedVehicle.CarPlate?.RegistrationId;
-                    vehicleID = !string.IsNullOrWhiteSpace(plate)
-                        ? "PLATE:" + plate.Trim().ToUpperInvariant()
-                        : !string.IsNullOrWhiteSpace(registrationID)
-                            ? "REG:" + registrationID.Trim().ToUpperInvariant()
+                    vehicleID = !string.IsNullOrWhiteSpace(registrationID)
+                        ? "REG:" + registrationID.Trim().ToUpperInvariant()
+                        : !string.IsNullOrWhiteSpace(plate)
+                            ? "PLATE:" + plate.Trim().ToUpperInvariant()
                             : null;
                     vehicleDescription = observedVehicle.FullName(false);
                 }
@@ -419,7 +419,8 @@ public class CopBrain : PedBrain
             return;
         }
 
-        if (!Cop.Pedestrian.Exists() || !Cop.Pedestrian.IsAlive || !ANPRScanVehicle.Vehicle.Exists())
+        if (!Cop.Pedestrian.Exists() || !Cop.Pedestrian.IsAlive ||
+            ANPRScanVehicle.Vehicle == null || !ANPRScanVehicle.Vehicle.Exists())
         {
             ClearANPRScan();
             return;
