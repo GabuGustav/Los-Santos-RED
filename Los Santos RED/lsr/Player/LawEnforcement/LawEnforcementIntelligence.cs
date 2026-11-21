@@ -443,10 +443,10 @@ namespace LosSantosRED.lsr
                     (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
                     x.ObservedAt <= observedAt && observedAt - x.ObservedAt <= TimeSpan.FromSeconds(30))
                 .OrderByDescending(x => x.ObservedAt)
-                .FirstOrDefault(x =>
+                .FirstOrDefault(sighting =>
                 {
-                    float dx = x.PositionX - x;
-                    float dy = x.PositionY - y;
+                    float dx = sighting.PositionX - x;
+                    float dy = sighting.PositionY - y;
                     return dx * dx + dy * dy <= 35f * 35f;
                 });
 
