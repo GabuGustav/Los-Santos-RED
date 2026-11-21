@@ -8,7 +8,8 @@ namespace LosSantosRED.lsr
         CurrentDriver,
         PreviouslyDriven,
         SuspectedAssociated,
-        ConfirmedByANPR
+        ConfirmedByANPR,
+        FormerRegisteredOwner
     }
 
     [Serializable]
