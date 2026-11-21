@@ -21,6 +21,7 @@ public class ResidenceOperationsDispatcher
     private readonly Dictionary<string, RuntimeOperation> RuntimeOperations =
         new Dictionary<string, RuntimeOperation>();
     private uint LastUpdateGameTime;
+    private LawEnforcementIntelligence CurrentRuntimeIntelligence;
 
     private class RuntimeOperation
     {
@@ -63,6 +64,13 @@ public class ResidenceOperationsDispatcher
         LawEnforcementIntelligence intelligence = modPlayer.LawEnforcementIntelligence;
         intelligence.Normalize();
         settings.Normalize();
+        if (!object.ReferenceEquals(CurrentRuntimeIntelligence, intelligence))
+        {
+            foreach (RuntimeOperation oldRuntime in RuntimeOperations.Values.ToList())
+                CleanupRuntime(oldRuntime);
+            RuntimeOperations.Clear();
+            CurrentRuntimeIntelligence = intelligence;
+        }
 
         if (!settings.EnableWarrants)
         {
@@ -87,6 +95,7 @@ public class ResidenceOperationsDispatcher
                 CleanupRuntime(runtime);
             RuntimeOperations.Clear();
         }
+        CurrentRuntimeIntelligence = null;
     }
 
     private void TryPlanOperation(LawEnforcementIntelligence intelligence, DateTime now,
