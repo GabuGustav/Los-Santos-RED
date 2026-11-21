@@ -128,6 +128,8 @@ namespace LosSantosRED.lsr
                     return false;
                 if (observation.ObservedAt - previous.ObservedAt < TimeSpan.FromMinutes(30))
                 {
+                    if (string.IsNullOrWhiteSpace(previous.ID))
+                        previous.ID = Guid.NewGuid().ToString("N");
                     previous.ObservedAt = observation.ObservedAt;
                     previous.TargetDescription = observation.TargetDescription;
                     previous.IsKnownToPolice = true;
