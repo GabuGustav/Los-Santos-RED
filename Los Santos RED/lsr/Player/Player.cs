@@ -282,7 +282,8 @@ namespace Mod
             LawEnforcementIntelligenceSettings settings = Settings?.SettingsManager?.LawEnforcementIntelligenceSettings;
             if (settings == null || !settings.EnableBOLOSystem) return 0f;
             return LawEnforcementIntelligenceManager?.BOLOManager?.GetVehicleStopChance(
-                LawEnforcementIntelligence, CurrentDateTime, zoneID, plateNumber, vehicleModel) ?? 0f;
+                LawEnforcementIntelligence, CurrentDateTime, zoneID, plateNumber, vehicleModel,
+                AssignedAgency?.ID) ?? 0f;
         }
 
         public PoliceOperationRecord PlanLawEnforcementResidenceOperation(string warrantID,
