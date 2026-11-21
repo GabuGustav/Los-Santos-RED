@@ -73,10 +73,10 @@ public class CopBrain : PedBrain
                 {
                     string plate = observedVehicle.CarPlate?.PlateNumber ?? observedVehicle.Vehicle.LicensePlate;
                     string registrationID = observedVehicle.CarPlate?.RegistrationId;
-                    vehicleID = !string.IsNullOrWhiteSpace(registrationID)
-                        ? "REG:" + registrationID.Trim().ToUpperInvariant()
-                        : !string.IsNullOrWhiteSpace(plate)
-                            ? "PLATE:" + plate.Trim().ToUpperInvariant()
+                    vehicleID = !string.IsNullOrWhiteSpace(plate)
+                        ? "PLATE:" + plate.Trim().ToUpperInvariant()
+                        : !string.IsNullOrWhiteSpace(registrationID)
+                            ? "REG:" + registrationID.Trim().ToUpperInvariant()
                             : null;
                     vehicleDescription = observedVehicle.FullName(false);
                 }
