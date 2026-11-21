@@ -786,15 +786,39 @@ namespace LosSantosRED.lsr
         public bool ResolveWarrant(string id, WarrantStatus status, DateTime at, string notes)
         {
             if (status != WarrantStatus.Served && status != WarrantStatus.Cleared && status != WarrantStatus.Expired) return false;
-            WarrantRecord w = Warrants.FirstOrDefault(x => x != null && x.ID == id && x.Status == WarrantStatus.Active);
+            WarrantRecord w = Warrants.FirstOrDefault(x => x != null && x.ID == id &&
+                (x.Status == WarrantStatus.Active ||
+                 (x.Status == WarrantStatus.Suspended && status != WarrantStatus.Served)));
             if (w == null || at == DateTime.MinValue || at < w.IssuedAt) return false;
-            w.Status = status; w.ResolvedAt = at; w.ResolutionNotes = notes; LastUpdatedAt = at; return true;
+            w.Status = status;
+            w.ResolvedAt = at;
+            w.ResolutionNotes = notes;
+            LastUpdatedAt = at;
+            return true;
         }
         public bool SetWarrantSuspended(string id, bool suspended, DateTime at)
         {
-            WarrantRecord w = Warrants.FirstOrDefault(x => x != null && x.ID == id && (x.Status == WarrantStatus.Active || x.Status == WarrantStatus.Suspended));
-            if (w == null || at == DateTime.MinValue) return false;
-            w.Status = suspended ? WarrantStatus.Suspended : WarrantStatus.Active; LastUpdatedAt = at; return true;
+            WarrantRecord w = Warrants.FirstOrDefault(x => x != null && x.ID == id &&
+                (x.Status == WarrantStatus.Active || x.Status == WarrantStatus.Suspended));
+            if (w == null || at == DateTime.MinValue || at < w.IssuedAt) return false;
+
+            // A suspension pauses enforcement, not the warrant's legal lifetime.
+            // Never allow an expired warrant to be reactivated.
+            if (w.ExpiresAt.HasValue && at >= w.ExpiresAt.Value)
+            {
+                return ResolveWarrant(w.ID, WarrantStatus.Expired, at,
+                    "Warrant expired while active or suspended.");
+            }
+
+            if (suspended && w.Status == WarrantStatus.Active)
+                w.Status = WarrantStatus.Suspended;
+            else if (!suspended && w.Status == WarrantStatus.Suspended)
+                w.Status = WarrantStatus.Active;
+            else if (w.Status != (suspended ? WarrantStatus.Suspended : WarrantStatus.Active))
+                return false;
+
+            LastUpdatedAt = at;
+            return true;
         }
         public BOLORecord IssueBOLO(DateTime issuedAt, BOLOTargetType targetType, string description, string vehicleModel, string plateNumber, string zoneID, string lastKnownLocationID, DateTime? expiresAt, float stopChanceInZone, float stopChanceOutsideZone, string notes)
         {
@@ -807,15 +831,28 @@ namespace LosSantosRED.lsr
 
         public bool SetBOLOStatus(string id, BOLOStatus status, DateTime at)
         {
-            if (status == BOLOStatus.Active || at == DateTime.MinValue) return false;
-            BOLORecord b = BOLOs.FirstOrDefault(x => x != null && x.ID == id && x.Status == BOLOStatus.Active);
+            if (at == DateTime.MinValue) return false;
+            BOLORecord b = BOLOs.FirstOrDefault(x => x != null && x.ID == id &&
+                (x.Status == BOLOStatus.Active || x.Status == BOLOStatus.Suspended));
             if (b == null || at < b.IssuedAt) return false;
-            b.Status = status; LastUpdatedAt = at; return true;
+            if (status == BOLOStatus.Active)
+            {
+                if (b.Status != BOLOStatus.Suspended ||
+                    (b.ExpiresAt.HasValue && at >= b.ExpiresAt.Value))
+                    return false;
+            }
+            else if (status == BOLOStatus.Suspended && b.Status != BOLOStatus.Active)
+                return false;
+            b.Status = status;
+            LastUpdatedAt = at;
+            return true;
         }
         public void UpdateExpirations(DateTime at)
         {
             if (at == DateTime.MinValue) return;
-            foreach (BOLORecord b in BOLOs.Where(x => x != null && x.Status == BOLOStatus.Active && x.ExpiresAt.HasValue && at >= x.ExpiresAt.Value))
+            foreach (BOLORecord b in BOLOs.Where(x => x != null &&
+                (x.Status == BOLOStatus.Active || x.Status == BOLOStatus.Suspended) &&
+                x.ExpiresAt.HasValue && at >= x.ExpiresAt.Value))
                 b.Status = BOLOStatus.Expired;
             LastUpdatedAt = at;
         }
@@ -1390,7 +1427,8 @@ namespace LosSantosRED.lsr
         Active,
         Cancelled,
         Expired,
-        Resolved
+        Resolved,
+        Suspended
     }
 
     public class BOLORecord
