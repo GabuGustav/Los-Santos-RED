@@ -289,7 +289,7 @@ namespace LosSantosRED.lsr
                 EvidenceType = IntelligenceEvidenceType.LicensePlateRead, TargetType = IntelligenceTargetType.LicensePlate,
                 TargetID = plateNumber.Trim().ToUpperInvariant(), TargetDescription = vehicleDescription,
                 SourceID = "ANPR:" + (officerID ?? "UNKNOWN"), EntityID = registrationID,
-                IsKnownToPolice = true, Confidence = 0.98f, PositionX = x, PositionY = y, PositionZ = z,
+                IsKnownToPolice = true, IsVerified = true, Confidence = 0.98f, PositionX = x, PositionY = y, PositionZ = z,
                 LocationID = locationID, LocationName = locationName,
                 Notes = "Plate read by an active police ANPR scan."
             });
