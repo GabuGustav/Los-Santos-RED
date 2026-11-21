@@ -8,7 +8,7 @@ namespace LosSantosRED.lsr
     // a data-only model: collection and decision-making are added in later phases.
     public class LawEnforcementIntelligence
     {
-        public int SchemaVersion { get; set; } = 3;
+        public int SchemaVersion { get; set; } = 4;
         public string SubjectID { get; set; } = "PLAYER";
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
@@ -898,7 +898,7 @@ namespace LosSantosRED.lsr
 
         public void Normalize()
         {
-            if (SchemaVersion < 3) SchemaVersion = 3;
+            if (SchemaVersion < 4) SchemaVersion = 4;
             if (string.IsNullOrWhiteSpace(SubjectID)) SubjectID = "PLAYER";
             if (Observations == null) Observations = new List<IntelligenceObservation>();
             if (Investigations == null) Investigations = new List<InvestigationRecord>();
