@@ -21,6 +21,28 @@ namespace LosSantosRED.lsr
             return warrant;
         }
 
+        // Snapshot only businesses that are owned at the exact moment the warrant is issued.
+        // Later purchases/sales are represented by subsequent ownership observations instead.
+        public WarrantRecord IssueWithPropertySnapshot(LawEnforcementIntelligence intelligence, DateTime issuedAt,
+            WarrantType type, WarrantPriority priority, string agencyID, string jurisdictionID,
+            IEnumerable<string> crimeIDs, IEnumerable<GameLocation> currentProperties,
+            string residenceID = null, float residenceConfidence = 0f, DateTime? expiresAt = null)
+        {
+            IEnumerable<string> ownedBusinessIDs = currentProperties == null
+                ? Enumerable.Empty<string>()
+                : currentProperties.OfType<Business>()
+                    .Where(business => business != null && business.IsOwned)
+                    .Select(business => LawEnforcementIntelligence.GetBusinessIdentity(
+                        business.Name, business.EntrancePosition.X,
+                        business.EntrancePosition.Y, business.EntrancePosition.Z))
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+            return Issue(intelligence, issuedAt, type, priority, agencyID, jurisdictionID,
+                crimeIDs, ownedBusinessIDs, residenceID, residenceConfidence, expiresAt);
+        }
+
         public WarrantRecord FindActive(LawEnforcementIntelligence intelligence, string agencyID, string jurisdictionID)
         {
             if (intelligence == null || intelligence.Warrants == null) return null;
