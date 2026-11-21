@@ -19,6 +19,7 @@ namespace LosSantosRED.lsr
         public List<SurveillanceAssignment> SurveillanceAssignments { get; set; } = new List<SurveillanceAssignment>();
         public List<PoliceOperationRecord> PoliceOperations { get; set; } = new List<PoliceOperationRecord>();
         public List<VehicleAssociationRecord> VehicleAssociations { get; set; } = new List<VehicleAssociationRecord>();
+        public List<AlertDisseminationRecord> AlertDisseminations { get; set; } = new List<AlertDisseminationRecord>();
 
         // Use registration identity before the displayed plate so plate changes do not split one vehicle across records.
         public static string GetVehicleIdentity(string registrationID, string plateNumber)
@@ -87,6 +88,13 @@ namespace LosSantosRED.lsr
                 foreach (VehicleAssociationRecord item in VehicleAssociations)
                 {
                     if (item != null) copy.VehicleAssociations.Add(item.Copy());
+                }
+            }
+            if (AlertDisseminations != null)
+            {
+                foreach (AlertDisseminationRecord item in AlertDisseminations)
+                {
+                    if (item != null) copy.AlertDisseminations.Add(item.Copy());
                 }
             }
             return copy;
@@ -899,6 +907,13 @@ namespace LosSantosRED.lsr
             if (SurveillanceAssignments == null) SurveillanceAssignments = new List<SurveillanceAssignment>();
             if (PoliceOperations == null) PoliceOperations = new List<PoliceOperationRecord>();
             if (VehicleAssociations == null) VehicleAssociations = new List<VehicleAssociationRecord>();
+            if (AlertDisseminations == null) AlertDisseminations = new List<AlertDisseminationRecord>();
+            foreach (AlertDisseminationRecord delivery in AlertDisseminations.Where(x => x != null))
+            {
+                if (string.IsNullOrWhiteSpace(delivery.ID)) delivery.ID = Guid.NewGuid().ToString("N");
+                if (string.IsNullOrWhiteSpace(delivery.SendingAgencyID)) delivery.Status = AlertDisseminationStatus.Cancelled;
+                if (string.IsNullOrWhiteSpace(delivery.ReceivingAgencyID)) delivery.Status = AlertDisseminationStatus.Cancelled;
+            }
             foreach (VehicleAssociationRecord association in VehicleAssociations.Where(x => x != null))
             {
                 if (string.IsNullOrWhiteSpace(association.ID)) association.ID = Guid.NewGuid().ToString("N");
@@ -962,6 +977,47 @@ namespace LosSantosRED.lsr
                 if (string.IsNullOrWhiteSpace(observation.SourceID)) observation.SourceID = "UNKNOWN";
                 observation.Confidence = NormalizeProbability(observation.Confidence);
             }
+        }
+    }
+
+
+    public enum IntelligenceAlertType
+    {
+        Warrant,
+        BOLO
+    }
+
+    public enum AlertDisseminationStatus
+    {
+        Pending,
+        Delivered,
+        Cancelled
+    }
+
+    // A durable relay record: agencies do not gain awareness until AvailableAt.
+    public class AlertDisseminationRecord
+    {
+        public string ID { get; set; }
+        public IntelligenceAlertType AlertType { get; set; }
+        public string AlertID { get; set; }
+        public string SendingAgencyID { get; set; }
+        public string ReceivingAgencyID { get; set; }
+        public DateTime ScheduledAt { get; set; }
+        public DateTime AvailableAt { get; set; }
+        public DateTime? DeliveredAt { get; set; }
+        public AlertDisseminationStatus Status { get; set; } = AlertDisseminationStatus.Pending;
+        public bool IsMutualAid { get; set; }
+        public string Notes { get; set; }
+
+        public AlertDisseminationRecord Copy()
+        {
+            return new AlertDisseminationRecord
+            {
+                ID = ID, AlertType = AlertType, AlertID = AlertID,
+                SendingAgencyID = SendingAgencyID, ReceivingAgencyID = ReceivingAgencyID,
+                ScheduledAt = ScheduledAt, AvailableAt = AvailableAt, DeliveredAt = DeliveredAt,
+                Status = Status, IsMutualAid = IsMutualAid, Notes = Notes
+            };
         }
     }
 
