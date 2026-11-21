@@ -198,7 +198,8 @@ namespace LosSantosRED.lsr
 
                 BOLORecord boloRecord = intelligence.IssueBOLO(currentTime, BOLOTargetType.Person,
                     "Wanted person associated with an active " + warrant.Type + " warrant.",
-                    null, null, null, lastKnownObservation?.LocationID, warrant.ExpiresAt,
+                    null, null, lastKnownObservation?.LocationID, lastKnownObservation?.LocationID,
+                    warrant.ExpiresAt,
                     settings.BOLOInZoneStopChance / 100f,
                     settings.BOLOOutOfZoneStopChance / 100f,
                     "AUTO_WARRANT_BOLO:" + warrant.ID);
