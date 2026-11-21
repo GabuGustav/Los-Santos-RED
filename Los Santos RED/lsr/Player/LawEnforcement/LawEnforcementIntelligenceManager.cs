@@ -72,6 +72,90 @@ namespace LosSantosRED.lsr
             return true;
         }
 
+        // Queue a warrant or BOLO for another agency. The recipient gains no alert
+        // awareness until the configured relay delay has elapsed.
+        public bool ScheduleAlertDissemination(LawEnforcementIntelligence intelligence,
+            IntelligenceAlertType alertType, string alertID, string sendingAgencyID,
+            string receivingAgencyID, DateTime scheduledAt,
+            LawEnforcementIntelligenceSettings settings, bool isMutualAid = false, string notes = null)
+        {
+            if (intelligence == null || settings == null || !settings.EnableInterAgencyAlertSharing ||
+                string.IsNullOrWhiteSpace(alertID) || string.IsNullOrWhiteSpace(sendingAgencyID) ||
+                string.IsNullOrWhiteSpace(receivingAgencyID) ||
+                string.Equals(sendingAgencyID, receivingAgencyID, StringComparison.OrdinalIgnoreCase) ||
+                scheduledAt == DateTime.MinValue)
+                return false;
+
+            settings.Normalize();
+            intelligence.Normalize();
+            bool alertIsActive = alertType == IntelligenceAlertType.Warrant
+                ? intelligence.Warrants.Any(x => x != null && x.ID == alertID && x.Status == WarrantStatus.Active)
+                : intelligence.BOLOs.Any(x => x != null && x.ID == alertID && x.Status == BOLOStatus.Active);
+            if (!alertIsActive) return false;
+
+            bool alreadyQueued = intelligence.AlertDisseminations.Any(x => x != null &&
+                x.AlertType == alertType && string.Equals(x.AlertID, alertID, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(x.ReceivingAgencyID, receivingAgencyID, StringComparison.OrdinalIgnoreCase) &&
+                (x.Status == AlertDisseminationStatus.Pending || x.Status == AlertDisseminationStatus.Delivered));
+            if (alreadyQueued) return false;
+
+            int delayMinutes = isMutualAid
+                ? settings.MutualAidAlertDelayMinutes : settings.InterAgencyAlertDelayMinutes;
+            intelligence.AlertDisseminations.Add(new AlertDisseminationRecord
+            {
+                ID = Guid.NewGuid().ToString("N"),
+                AlertType = alertType,
+                AlertID = alertID,
+                SendingAgencyID = sendingAgencyID,
+                ReceivingAgencyID = receivingAgencyID,
+                ScheduledAt = scheduledAt,
+                AvailableAt = scheduledAt.AddMinutes(delayMinutes),
+                Status = AlertDisseminationStatus.Pending,
+                IsMutualAid = isMutualAid,
+                Notes = notes
+            });
+            intelligence.LastUpdatedAt = scheduledAt;
+            return true;
+        }
+
+        private void ProcessAlertDisseminations(LawEnforcementIntelligence intelligence, DateTime currentTime)
+        {
+            if (intelligence?.AlertDisseminations == null) return;
+            foreach (AlertDisseminationRecord delivery in intelligence.AlertDisseminations
+                .Where(x => x != null && x.Status == AlertDisseminationStatus.Pending &&
+                    x.AvailableAt <= currentTime).ToList())
+            {
+                if (delivery.AlertType == IntelligenceAlertType.Warrant)
+                {
+                    WarrantRecord warrant = intelligence.Warrants.FirstOrDefault(x => x != null &&
+                        x.ID == delivery.AlertID && x.Status == WarrantStatus.Active);
+                    if (warrant == null)
+                    {
+                        delivery.Status = AlertDisseminationStatus.Cancelled;
+                        delivery.Notes = "Alert was no longer active when the relay became available.";
+                        continue;
+                    }
+                    WarrantManager.DisseminateToAgency(intelligence, warrant.ID, delivery.ReceivingAgencyID);
+                }
+                else
+                {
+                    BOLORecord bolo = intelligence.BOLOs.FirstOrDefault(x => x != null &&
+                        x.ID == delivery.AlertID && x.Status == BOLOStatus.Active);
+                    if (bolo == null)
+                    {
+                        delivery.Status = AlertDisseminationStatus.Cancelled;
+                        delivery.Notes = "Alert was no longer active when the relay became available.";
+                        continue;
+                    }
+                    if (bolo.KnownToAgencyIDs == null) bolo.KnownToAgencyIDs = new List<string>();
+                    if (!bolo.KnownToAgencyIDs.Contains(delivery.ReceivingAgencyID, StringComparer.OrdinalIgnoreCase))
+                        bolo.KnownToAgencyIDs.Add(delivery.ReceivingAgencyID);
+                }
+                delivery.Status = AlertDisseminationStatus.Delivered;
+                delivery.DeliveredAt = currentTime;
+            }
+        }
+
         public void Update(LawEnforcementIntelligence intelligence, DateTime currentTime, LawEnforcementIntelligenceSettings settings)
         {
             if (intelligence == null || currentTime == DateTime.MinValue || settings == null) return;
@@ -89,6 +173,7 @@ namespace LosSantosRED.lsr
                 WarrantManager.UpdateExpirations(intelligence, currentTime, settings);
             if (settings.EnableBOLOSystem)
                 BOLOManager.Update(intelligence, currentTime);
+            ProcessAlertDisseminations(intelligence, currentTime);
 
             if (settings.EnableBackgroundInvestigation)
             {
