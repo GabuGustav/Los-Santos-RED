@@ -20,6 +20,7 @@ namespace LosSantosRED.lsr
         public bool HasLastKnownPosition { get; set; }
         public bool IsCompromised { get; set; }
         public bool ReplacementRequired { get; set; }
+        public DateTime? NextAssignmentAllowedAt { get; set; }
         public string Notes { get; set; }
 
         public SurveillanceAssignment Copy()
