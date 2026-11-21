@@ -249,7 +249,9 @@ namespace Mod
                         (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
                         x.ObservedAt >= residenceEvidenceCutoff && x.ObservedAt <= CurrentDateTime &&
                         !string.IsNullOrWhiteSpace(x.TargetID) &&
-                        x.TargetID.StartsWith("RESIDENCE:", StringComparison.OrdinalIgnoreCase) &&
+                        !string.IsNullOrWhiteSpace(x.Notes) &&
+                        x.Notes.IndexOf("visually observed the subject at this residence",
+                            StringComparison.OrdinalIgnoreCase) >= 0 &&
                         (requestedResidenceID == null ||
                          string.Equals(x.TargetID, requestedResidenceID, StringComparison.OrdinalIgnoreCase) ||
                          string.Equals(x.TargetDescription, requestedResidenceID, StringComparison.OrdinalIgnoreCase)))
