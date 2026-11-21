@@ -79,6 +79,108 @@ namespace LosSantosRED.lsr
                 "Person BOLO issued after an identified suspect eluded police. Foot identification only.");
 
             LawEnforcementBOLOID = issuedBOLO?.ID;
+            IssueOrUpdateArrestWarrant(modPlayer, CrimesAssociated, zoneID);
+        }
+
+        private void IssueOrUpdateArrestWarrant(Mod.Player modPlayer,
+            IEnumerable<CrimeEvent> crimesAssociated, string jurisdictionID)
+        {
+            if (modPlayer == null || crimesAssociated == null ||
+                modPlayer.CurrentDateTime == DateTime.MinValue ||
+                modPlayer.Settings?.SettingsManager?.LawEnforcementIntelligenceSettings?.EnableWarrants != true)
+                return;
+
+            List<CrimeEvent> identifiedCrimes = crimesAssociated
+                .Where(x => x?.AssociatedCrime != null && !string.IsNullOrWhiteSpace(x.AssociatedCrime.ID))
+                .ToList();
+            List<string> crimeIDs = identifiedCrimes.Select(x => x.AssociatedCrime.ID)
+                .Distinct().ToList();
+            if (crimeIDs.Count == 0)
+                return;
+
+            bool lethalCrime = identifiedCrimes.Any(x => x.AssociatedCrime.ResultsInLethalForce);
+            WarrantPriority priority = lethalCrime || CurrentHistory.WantedLevel >= 5
+                ? WarrantPriority.Critical
+                : CurrentHistory.WantedLevel >= 4
+                    ? WarrantPriority.High
+                    : CurrentHistory.WantedLevel >= 3
+                        ? WarrantPriority.Moderate
+                        : WarrantPriority.Low;
+
+            Residence suspectedResidence = (modPlayer.CurrentLocation?.CurrentInterior as ResidenceInterior)?.Residence;
+            if (suspectedResidence == null || (!suspectedResidence.IsOwned && !suspectedResidence.IsRented))
+            {
+                suspectedResidence = modPlayer.Properties?.PropertyList?.OfType<Residence>()
+                    .FirstOrDefault(x => x != null && (x.IsOwned || x.IsRented));
+            }
+
+            string residenceID = suspectedResidence == null
+                ? null
+                : suspectedResidence.ResidenceID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            float residenceConfidence = suspectedResidence == null
+                ? 0f
+                : suspectedResidence.IsOwned ? 0.9f : 0.8f;
+            if (suspectedResidence != null && modPlayer.CurrentLocation?.IsInside == true &&
+                (modPlayer.CurrentLocation.CurrentInterior as ResidenceInterior)?.Residence?.ResidenceID ==
+                suspectedResidence.ResidenceID)
+                residenceConfidence = 0.98f;
+
+            LawEnforcementIntelligence intelligence = modPlayer.LawEnforcementIntelligence;
+            if (intelligence == null)
+                return;
+            intelligence.Normalize();
+
+            WarrantRecord warrant = modPlayer.LawEnforcementIntelligenceManager?.WarrantManager?.FindActive(
+                intelligence, modPlayer.AssignedAgency?.ID, jurisdictionID);
+            if (warrant == null)
+            {
+                warrant = modPlayer.IssueLawEnforcementWarrant(
+                    WarrantType.Arrest,
+                    priority,
+                    modPlayer.AssignedAgency?.ID ?? "LSPD",
+                    jurisdictionID,
+                    crimeIDs,
+                    residenceID,
+                    residenceConfidence);
+            }
+            else
+            {
+                if (warrant.LinkedCrimeIDs == null)
+                    warrant.LinkedCrimeIDs = new List<string>();
+                foreach (string crimeID in crimeIDs)
+                    if (!warrant.LinkedCrimeIDs.Contains(crimeID))
+                        warrant.LinkedCrimeIDs.Add(crimeID);
+                if (priority > warrant.Priority)
+                    warrant.Priority = priority;
+                if (!string.IsNullOrWhiteSpace(residenceID) &&
+                    (string.IsNullOrWhiteSpace(warrant.SuspectedResidenceID) ||
+                     residenceConfidence > warrant.ResidenceConfidence))
+                {
+                    warrant.SuspectedResidenceID = residenceID;
+                    warrant.ResidenceConfidence = residenceConfidence;
+                }
+                intelligence.LastUpdatedAt = modPlayer.CurrentDateTime;
+            }
+
+            if (warrant == null)
+                return;
+            if (warrant.EvidenceObservationIDs == null)
+                warrant.EvidenceObservationIDs = new List<string>();
+            foreach (CrimeEvent crimeEvent in identifiedCrimes)
+            {
+                string crimeName = crimeEvent.AssociatedCrime.Name;
+                foreach (IntelligenceObservation observation in intelligence.Observations.Where(x =>
+                    x != null && x.IsKnownToPolice && x.ObservedAt <= modPlayer.CurrentDateTime &&
+                    (string.Equals(x.TargetDescription, "Player suspected of " + crimeName,
+                        StringComparison.OrdinalIgnoreCase) ||
+                     (!string.IsNullOrWhiteSpace(x.Notes) &&
+                      x.Notes.IndexOf(crimeName, StringComparison.OrdinalIgnoreCase) >= 0))))
+                {
+                    if (!string.IsNullOrWhiteSpace(observation.ID) &&
+                        !warrant.EvidenceObservationIDs.Contains(observation.ID))
+                        warrant.EvidenceObservationIDs.Add(observation.ID);
+                }
+            }
         }
 
         private void ClearLawEnforcementBOLO()
