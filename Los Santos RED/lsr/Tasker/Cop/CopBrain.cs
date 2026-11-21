@@ -294,13 +294,11 @@ public class CopBrain : PedBrain
         GameTimeLastBOLOCheck = Game.GameTime;
         string zoneID = modPlayer.CurrentLocation?.CurrentZone?.InternalGameName;
         string plateNumber = Player.CurrentVehicle.Vehicle.LicensePlate;
+        // Vehicle stops are driven only by vehicle or plate BOLOs. Person BOLOs are
+        // handled by the separate on-foot identification encounter path below.
         float stopChance = modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.GetVehicleStopChance(
             modPlayer.LawEnforcementIntelligence, modPlayer.CurrentDateTime, zoneID,
             plateNumber, Player.CurrentVehicle.FullName(false)) ?? 0f;
-        float personBOLOChance = modPlayer.LawEnforcementIntelligenceManager?.BOLOManager?.GetPersonRecognitionChance(
-            modPlayer.LawEnforcementIntelligence, modPlayer.CurrentDateTime,
-            modPlayer.LawEnforcementIntelligence?.SubjectID, zoneID) ?? 0f;
-        stopChance = Math.Max(stopChance, personBOLOChance);
         if (stopChance <= 0.0f || !RandomItems.RandomPercent(stopChance * 100.0f))
             return false;
 
