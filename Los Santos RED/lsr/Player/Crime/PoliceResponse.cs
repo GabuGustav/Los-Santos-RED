@@ -365,6 +365,43 @@ namespace LosSantosRED.lsr
                 {
                     Player.SetWantedLevel(CrimeInstance.ResultingWantedLevel, CrimeInstance.Name, true);
                 }
+
+                // Feed only identified player crimes into the persistent intelligence store.
+                // Direct officer observations and identified witness reports have distinct provenance.
+                if (isForPlayer && (crimeSceneDescription.SeenByOfficers || crimeSceneDescription.HaveDescription))
+                {
+                    Mod.Player modPlayer = Player as Mod.Player;
+                    if (modPlayer != null && modPlayer.CurrentDateTime != DateTime.MinValue)
+                    {
+                        if (modPlayer.LawEnforcementIntelligence == null)
+                            modPlayer.LawEnforcementIntelligence = new LawEnforcementIntelligence();
+
+                        bool directlyObserved = crimeSceneDescription.SeenByOfficers;
+                        string zoneID = modPlayer.CurrentLocation?.CurrentZone?.InternalGameName;
+                        modPlayer.LawEnforcementIntelligence.RecordObservation(new IntelligenceObservation
+                        {
+                            ObservedAt = modPlayer.CurrentDateTime,
+                            Source = directlyObserved ? IntelligenceSource.PatrolOfficer : IntelligenceSource.Witness,
+                            EvidenceType = directlyObserved ? IntelligenceEvidenceType.CrimeSceneEvidence :
+                                IntelligenceEvidenceType.WitnessStatement,
+                            TargetType = IntelligenceTargetType.Person,
+                            TargetID = modPlayer.LawEnforcementIntelligence.SubjectID,
+                            TargetDescription = "Player suspected of " + CrimeInstance.Name,
+                            SourceID = directlyObserved ? "POLICE_CRIME_OBSERVATION" : "IDENTIFIED_WITNESS_REPORT",
+                            IsKnownToPolice = true,
+                            IsVerified = directlyObserved,
+                            Confidence = directlyObserved ? 0.95f : 0.7f,
+                            PositionX = crimeSceneDescription.PlaceSeen.X,
+                            PositionY = crimeSceneDescription.PlaceSeen.Y,
+                            PositionZ = crimeSceneDescription.PlaceSeen.Z,
+                            LocationID = zoneID,
+                            LocationName = zoneID,
+                            Notes = directlyObserved
+                                ? "Officer directly observed the player committing: " + CrimeInstance.Name
+                                : "Police received an identifying witness report for: " + CrimeInstance.Name
+                        });
+                    }
+                }
                 return crimeSceneDescription;
             }
             return null;
