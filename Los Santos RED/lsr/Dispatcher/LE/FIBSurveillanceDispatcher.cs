@@ -471,8 +471,8 @@ public class FIBSurveillanceDispatcher
             zoneID, zoneID);
         // Refresh last-contact time on every real line-of-sight observation, even when the
         // intelligence database deduplicates the stored observation record.
-        (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?
-            .RecordObservation(assignment, now, Player.Position.X, Player.Position.Y, Player.Position.Z);
+        (Player as Mod.Player)?.LawEnforcementIntelligenceManager?.SurveillanceAssignmentManager?.RecordObservation(
+            assignment, now, Player.Position.X, Player.Position.Y, Player.Position.Z);
     }
 
     private void IssueFollowCommand(RuntimeTeam team, LawEnforcementIntelligenceSettings settings)
