@@ -538,7 +538,7 @@ public class ResidenceOperationsDispatcher
         if (cop == null)
         {
             foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null))
-                if (ped.Pedestrian.Exists()) ped.Pedestrian.Delete();
+                if (ped.Pedestrian != null && ped.Pedestrian.Exists()) ped.Pedestrian.Delete();
         }
         return cop;
     }
