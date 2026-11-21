@@ -156,10 +156,23 @@ public class DebugPlayerStateSubMenu : DebugSubMenu
             menu.Visible = false;
         };
 
+        UIMenuItem LawEnforcementIntelligenceStatus = new UIMenuItem(
+            "Law Enforcement Intelligence Status",
+            "Display current investigation, warrant, BOLO, FIB surveillance and police-operation counts.");
+        LawEnforcementIntelligenceStatus.Activated += (menu, item) =>
+        {
+            Mod.Player modPlayer = Player as Mod.Player;
+            string summary = modPlayer?.LawEnforcementIntelligenceDebugSummary ??
+                "Law enforcement intelligence is unavailable.";
+            Game.DisplaySubtitle(summary, 10000);
+            menu.Visible = false;
+        };
+
         PlayerStateItemsMenu.AddItem(FillHealthAndArmor);
         PlayerStateItemsMenu.AddItem(SetHealth);
         PlayerStateItemsMenu.AddItem(KillPlayer);
         PlayerStateItemsMenu.AddItem(ToggleInvisible);
+        PlayerStateItemsMenu.AddItem(LawEnforcementIntelligenceStatus);
         PlayerStateItemsMenu.AddItem(ResetNeeds);
         PlayerStateItemsMenu.AddItem(SetRandomNeeds);
         PlayerStateItemsMenu.AddItem(ForceSober);
