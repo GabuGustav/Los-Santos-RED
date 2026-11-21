@@ -123,11 +123,11 @@ namespace LosSantosRED.lsr
             if (intelligence == null || intelligence.Warrants == null || currentTime == DateTime.MinValue)
                 return;
             foreach (WarrantRecord warrant in intelligence.Warrants.Where(x => x != null &&
-                x.Status == WarrantStatus.Active && x.ExpiresAt.HasValue &&
-                currentTime >= x.ExpiresAt.Value).ToList())
+                (x.Status == WarrantStatus.Active || x.Status == WarrantStatus.Suspended) &&
+                x.ExpiresAt.HasValue && currentTime >= x.ExpiresAt.Value).ToList())
             {
                 intelligence.ResolveWarrant(warrant.ID, WarrantStatus.Expired, currentTime,
-                    "Warrant expired at its configured expiration time.");
+                    "Warrant expired at its configured expiration time, including any period of suspension.");
             }
 
             if (intelligence.BOLOs == null) return;
@@ -137,23 +137,46 @@ namespace LosSantosRED.lsr
                 List<BOLORecord> linkedBOLOs = intelligence.BOLOs.Where(bolo => bolo != null &&
                     string.Equals(bolo.LinkedWarrantID, warrant.ID, StringComparison.OrdinalIgnoreCase)).ToList();
 
-                if (warrant.Status != WarrantStatus.Active)
+                if (warrant.Status == WarrantStatus.Suspended)
                 {
                     foreach (BOLORecord bolo in linkedBOLOs.Where(x => x.Status == BOLOStatus.Active))
                     {
-                        bolo.Status = warrant.Status == WarrantStatus.Expired
+                        intelligence.SetBOLOStatus(bolo.ID, BOLOStatus.Suspended, currentTime);
+                        bolo.Notes = (bolo.Notes ?? string.Empty) + " Suspended with linked warrant.";
+                    }
+                    continue;
+                }
+
+                if (warrant.Status == WarrantStatus.Active)
+                {
+                    // Restore the same alert when a warrant is reinstated. Its original expiry
+                    // remains in force; a suspension never extends the BOLO's lifetime.
+                    foreach (BOLORecord bolo in linkedBOLOs.Where(x => x.Status == BOLOStatus.Suspended))
+                    {
+                        intelligence.SetBOLOStatus(bolo.ID, BOLOStatus.Active, currentTime);
+                        bolo.Notes = (bolo.Notes ?? string.Empty) + " Reactivated with linked warrant.";
+                    }
+                    if (linkedBOLOs.Count > 0 || settings == null || !settings.EnableBOLOSystem)
+                        continue;
+                }
+                else
+                {
+                    foreach (BOLORecord bolo in linkedBOLOs.Where(x =>
+                        x.Status == BOLOStatus.Active || x.Status == BOLOStatus.Suspended))
+                    {
+                        BOLOStatus nextStatus = warrant.Status == WarrantStatus.Expired
                             ? BOLOStatus.Expired
                             : (warrant.Status == WarrantStatus.Served || warrant.Status == WarrantStatus.Cleared
                                 ? BOLOStatus.Resolved : BOLOStatus.Cancelled);
+                        intelligence.SetBOLOStatus(bolo.ID, nextStatus, currentTime);
                         bolo.Notes = (bolo.Notes ?? string.Empty) + " Linked warrant status: " +
                             warrant.Status + ".";
                     }
                     continue;
                 }
 
-                // One person BOLO per warrant. Existing resolved/cancelled records are retained
-                // as history and are not silently re-issued.
-                if (linkedBOLOs.Count > 0 || settings == null || !settings.EnableBOLOSystem)
+                // One person BOLO per warrant. Historical alerts are retained and not silently re-issued.
+                if (settings == null || !settings.EnableBOLOSystem)
                     continue;
 
                 settings.Normalize();
