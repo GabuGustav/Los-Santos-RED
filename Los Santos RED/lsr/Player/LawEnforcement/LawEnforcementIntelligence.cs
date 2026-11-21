@@ -356,26 +356,48 @@ namespace LosSantosRED.lsr
 
         public bool RecordANPRRead(DateTime observedAt, string officerID, string plateNumber, string registrationID, string vehicleDescription, float x, float y, float z, string locationID = null, string locationName = null)
         {
-            if (string.IsNullOrWhiteSpace(plateNumber)) return false;
+            if (observedAt == DateTime.MinValue)
+                return false;
+            string normalizedPlate = string.IsNullOrWhiteSpace(plateNumber)
+                ? null : plateNumber.Trim().ToUpperInvariant();
+            string normalizedRegistration = string.IsNullOrWhiteSpace(registrationID)
+                ? null : registrationID.Trim().ToUpperInvariant();
+            if (normalizedPlate == null && normalizedRegistration == null)
+                return false;
+
+            string vehicleID = normalizedPlate != null
+                ? "PLATE:" + normalizedPlate
+                : "REG:" + normalizedRegistration;
+            string sourceID = "ANPR:" + (officerID ?? "UNKNOWN");
             bool recorded = RecordObservation(new IntelligenceObservation
             {
-                ObservedAt = observedAt, Source = IntelligenceSource.ANPR,
-                EvidenceType = IntelligenceEvidenceType.LicensePlateRead, TargetType = IntelligenceTargetType.LicensePlate,
-                TargetID = plateNumber.Trim().ToUpperInvariant(), TargetDescription = vehicleDescription,
-                SourceID = "ANPR:" + (officerID ?? "UNKNOWN"), EntityID = registrationID,
-                IsKnownToPolice = true, IsVerified = true, Confidence = 0.98f, PositionX = x, PositionY = y, PositionZ = z,
-                LocationID = locationID, LocationName = locationName,
-                Notes = "Plate read by an active police ANPR scan."
+                ObservedAt = observedAt,
+                Source = IntelligenceSource.ANPR,
+                EvidenceType = IntelligenceEvidenceType.LicensePlateRead,
+                TargetType = normalizedPlate != null ? IntelligenceTargetType.LicensePlate : IntelligenceTargetType.Vehicle,
+                TargetID = normalizedPlate ?? vehicleID,
+                TargetDescription = vehicleDescription,
+                SourceID = sourceID,
+                EntityID = normalizedRegistration,
+                IsKnownToPolice = true,
+                IsVerified = true,
+                Confidence = normalizedPlate != null ? 0.98f : 0.75f,
+                PositionX = x,
+                PositionY = y,
+                PositionZ = z,
+                LocationID = locationID,
+                LocationName = locationName,
+                Notes = normalizedPlate != null
+                    ? "Displayed plate read by an active police ANPR scan."
+                    : "Vehicle registration identity recorded by an active police scan; no displayed plate was readable."
             });
-            if (recorded)
-            {
-                string vehicleID = !string.IsNullOrWhiteSpace(plateNumber)
-                    ? "PLATE:" + plateNumber.Trim().ToUpperInvariant()
-                    : !string.IsNullOrWhiteSpace(registrationID)
-                        ? "REG:" + registrationID.Trim().ToUpperInvariant()
-                        : null;
-                RecordVehicleAssociation(observedAt, vehicleID, VehicleAssociationType.ConfirmedByANPR,
-                    "ANPR:" + (officerID ?? "UNKNOWN"), 0.98f, true,
+            RecordVehicleAssociation(observedAt, vehicleID, VehicleAssociationType.ConfirmedByANPR,
+                sourceID, normalizedPlate != null ? 0.98f : 0.75f, true,
+                normalizedPlate != null
+                    ? "Displayed plate and vehicle were confirmed by an active police ANPR scan."
+                    : "Vehicle identity was associated through its registration record during an active police scan.");
+            return recorded;
+        } (officerID ?? "UNKNOWN"), 0.98f, true,
                     "Vehicle and displayed plate were confirmed by an active police ANPR scan while the player was visibly driving.");
             }
             return recorded;
