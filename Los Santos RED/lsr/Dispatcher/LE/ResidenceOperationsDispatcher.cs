@@ -519,29 +519,48 @@ public class ResidenceOperationsDispatcher
         if (person == null)
             return null;
 
-        SpawnLocation spawnLocation = new SpawnLocation(position);
-        spawnLocation.StreetPosition = position;
-        LESpawnTask spawnTask = new LESpawnTask(agency, spawnLocation, null, person, false,
-            Settings, Weapons, Names, false, World, ModItems, false, ShopMenus, Crimes);
-        spawnTask.AllowAnySpawn = true;
-        spawnTask.AllowBuddySpawn = false;
-        spawnTask.ClearVehicleArea = false;
-        spawnTask.PlacePedOnGround = false;
-        spawnTask.SpawnWithAllWeapons = false;
-        spawnTask.IsOffDutySpawn = offDuty;
-        spawnTask.AttemptSpawn();
-
-        foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null && x.Pedestrian != null && x.Pedestrian.Exists()))
-            World.Pedestrians.AddEntity(ped);
-
-        Cop cop = spawnTask.CreatedPeople.OfType<Cop>().FirstOrDefault(x =>
-            x != null && x.Pedestrian != null && x.Pedestrian.Exists());
-        if (cop == null)
+        LESpawnTask spawnTask = null;
+        try
         {
-            foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null))
-                if (ped.Pedestrian != null && ped.Pedestrian.Exists()) ped.Pedestrian.Delete();
+            SpawnLocation spawnLocation = new SpawnLocation(position);
+            spawnLocation.StreetPosition = position;
+            spawnTask = new LESpawnTask(agency, spawnLocation, null, person, false,
+                Settings, Weapons, Names, false, World, ModItems, false, ShopMenus, Crimes);
+            spawnTask.AllowAnySpawn = true;
+            spawnTask.AllowBuddySpawn = false;
+            spawnTask.ClearVehicleArea = false;
+            spawnTask.PlacePedOnGround = false;
+            spawnTask.SpawnWithAllWeapons = false;
+            spawnTask.IsOffDutySpawn = offDuty;
+            spawnTask.AttemptSpawn();
+
+            foreach (PedExt ped in spawnTask.CreatedPeople.Where(x =>
+                x != null && x.Pedestrian != null && x.Pedestrian.Exists()))
+                World.Pedestrians.AddEntity(ped);
+
+            Cop cop = spawnTask.CreatedPeople.OfType<Cop>().FirstOrDefault(x =>
+                x != null && x.Pedestrian != null && x.Pedestrian.Exists());
+            if (cop == null)
+                CleanupSpawnedPeople(spawnTask);
+            return cop;
         }
-        return cop;
+        catch (Exception ex)
+        {
+            CleanupSpawnedPeople(spawnTask);
+            EntryPoint.WriteToConsole("Residence operation officer spawn failed: " + ex);
+            return null;
+        }
+    }
+
+    private void CleanupSpawnedPeople(LESpawnTask spawnTask)
+    {
+        if (spawnTask?.CreatedPeople == null)
+            return;
+        foreach (PedExt ped in spawnTask.CreatedPeople.Where(x => x != null).ToList())
+        {
+            if (ped.Pedestrian != null && ped.Pedestrian.Exists())
+                ped.Pedestrian.Delete();
+        }
     }
 
     private Agency GetAgencyForWarrant(LawEnforcementIntelligence intelligence, string warrantID)
