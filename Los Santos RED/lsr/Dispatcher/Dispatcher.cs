@@ -117,8 +117,22 @@ public class Dispatcher
             return;
         }
 
-        FIBSurveillanceDispatcher?.Update();
-        ResidenceOperationsDispatcher?.Update();
+        try
+        {
+            FIBSurveillanceDispatcher?.Update();
+        }
+        catch (Exception ex)
+        {
+            EntryPoint.WriteToConsole("FIB surveillance update failed: " + ex);
+        }
+        try
+        {
+            ResidenceOperationsDispatcher?.Update();
+        }
+        catch (Exception ex)
+        {
+            EntryPoint.WriteToConsole("Residence operations update failed: " + ex);
+        }
 
         //int vehicleCount = World.Vehicles.AllVehicleList.Count();
         //int pedCount = World.Pedestrians.PedExts.Count();
