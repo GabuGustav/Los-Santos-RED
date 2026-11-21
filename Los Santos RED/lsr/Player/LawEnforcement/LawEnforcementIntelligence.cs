@@ -100,7 +100,7 @@ namespace LosSantosRED.lsr
                 ObservedAt = observedAt, Source = IntelligenceSource.PatrolOfficer,
                 EvidenceType = IntelligenceEvidenceType.VisualSighting, TargetType = IntelligenceTargetType.Person,
                 TargetID = SubjectID, TargetDescription = "Player", SourceID = sourceID, EntityID = officerID,
-                IsKnownToPolice = true, Confidence = 0.85f, PositionX = x, PositionY = y, PositionZ = z,
+                IsKnownToPolice = true, IsVerified = true, Confidence = 0.85f, PositionX = x, PositionY = y, PositionZ = z,
                 LocationID = locationID, LocationName = locationName
             });
             if (inVehicle && !string.IsNullOrWhiteSpace(vehicleID))
