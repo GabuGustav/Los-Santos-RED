@@ -103,8 +103,12 @@ namespace LosSantosRED.lsr
                 {
                     foreach (BOLORecord bolo in linkedBOLOs.Where(x => x.Status == BOLOStatus.Active))
                     {
-                        bolo.Status = BOLOStatus.Cancelled;
-                        bolo.Notes = (bolo.Notes ?? string.Empty) + " Warrant is no longer active.";
+                        bolo.Status = warrant.Status == WarrantStatus.Expired
+                            ? BOLOStatus.Expired
+                            : (warrant.Status == WarrantStatus.Served || warrant.Status == WarrantStatus.Cleared
+                                ? BOLOStatus.Resolved : BOLOStatus.Cancelled);
+                        bolo.Notes = (bolo.Notes ?? string.Empty) + " Linked warrant status: " +
+                            warrant.Status + ".";
                     }
                     continue;
                 }
