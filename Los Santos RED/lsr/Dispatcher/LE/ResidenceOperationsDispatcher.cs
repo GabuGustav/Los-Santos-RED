@@ -672,13 +672,18 @@ public class ResidenceOperationsDispatcher
         if (intelligence == null || residence == null || now == DateTime.MinValue)
             return false;
 
-        string residenceTargetID = "RESIDENCE:" +
-            residence.ResidenceID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string residenceTargetID = residence.ResidenceID.ToString(
+            System.Globalization.CultureInfo.InvariantCulture);
+        string legacyResidenceTargetID = LawEnforcementIntelligence.GetResidenceIdentity(
+            residence.Name, residence.EntrancePosition.X,
+            residence.EntrancePosition.Y, residence.EntrancePosition.Z);
         bool recentlyObservedAtResidence = intelligence.Observations != null &&
             intelligence.Observations.Any(x => x != null &&
             x.IsKnownToPolice && x.IsVerified &&
             x.TargetType == IntelligenceTargetType.Location &&
-            string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(x.TargetID, residenceTargetID, StringComparison.OrdinalIgnoreCase) ||
+             (!string.IsNullOrWhiteSpace(legacyResidenceTargetID) &&
+              string.Equals(x.TargetID, legacyResidenceTargetID, StringComparison.OrdinalIgnoreCase))) &&
             (x.Source == IntelligenceSource.PatrolOfficer || x.Source == IntelligenceSource.Surveillance) &&
             x.ObservedAt <= now && now - x.ObservedAt <= TimeSpan.FromMinutes(2));
         if (recentlyObservedAtResidence)
@@ -703,10 +708,18 @@ public class ResidenceOperationsDispatcher
     {
         if (string.IsNullOrWhiteSpace(residenceID) || PlacesOfInterest?.PossibleLocations?.Residences == null)
             return null;
-        if (!int.TryParse(residenceID, out int id) || id < 0)
-            return null;
+
+        if (int.TryParse(residenceID, out int id) && id >= 0)
+            return PlacesOfInterest.PossibleLocations.Residences.FirstOrDefault(x =>
+                x != null && x.ResidenceID == id && x.IsCorrectMap(World.IsMPMapLoaded));
+
+        // Older residence-visit evidence uses a stable name/entrance-coordinate identity
+        // rather than the numeric game residence ID. Resolve it against the current map.
         return PlacesOfInterest.PossibleLocations.Residences.FirstOrDefault(x =>
-            x != null && x.ResidenceID == id && x.IsCorrectMap(World.IsMPMapLoaded));
+            x != null && x.IsCorrectMap(World.IsMPMapLoaded) &&
+            string.Equals(LawEnforcementIntelligence.GetResidenceIdentity(
+                x.Name, x.EntrancePosition.X, x.EntrancePosition.Y, x.EntrancePosition.Z),
+                residenceID, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string FindInvestigationID(LawEnforcementIntelligence intelligence, string warrantID)
