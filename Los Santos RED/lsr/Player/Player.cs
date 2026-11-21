@@ -259,7 +259,7 @@ namespace Mod
                         residenceConfidence = inferredResidenceConfidence;
                 }
             }
-            WarrantRecord issuedWarrant = LawEnforcementIntelligenceManager?.WarrantManager?.Issue(
+            WarrantRecord issuedWarrant = LawEnforcementIntelligenceManager?.WarrantManager?.IssueWithPropertySnapshot(
                 LawEnforcementIntelligence, CurrentDateTime, type, priority, issuingAgencyID,
                 jurisdictionID, linkedCrimeIDs, currentProperties, suspectedResidenceID,
                 residenceConfidence, expiresAt);
