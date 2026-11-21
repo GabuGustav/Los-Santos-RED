@@ -139,7 +139,12 @@ namespace LosSantosRED.lsr
                     settings.BOLOOutOfZoneStopChance / 100f,
                     "AUTO_WARRANT_BOLO:" + warrant.ID);
                 if (boloRecord != null)
+                {
                     boloRecord.LinkedWarrantID = warrant.ID;
+                    if (warrant.KnownToAgencyIDs != null)
+                        boloRecord.KnownToAgencyIDs.AddRange(warrant.KnownToAgencyIDs.Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct(StringComparer.OrdinalIgnoreCase));
+                }
             }
         }
 
