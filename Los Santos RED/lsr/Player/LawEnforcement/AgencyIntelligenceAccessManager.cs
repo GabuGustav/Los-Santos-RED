@@ -14,6 +14,7 @@ namespace LosSantosRED.lsr
         {
             if (intelligence == null || string.IsNullOrWhiteSpace(investigationID) ||
                 string.IsNullOrWhiteSpace(requestingAgencyID) || string.IsNullOrWhiteSpace(purpose) ||
+                !Enum.IsDefined(typeof(InvestigationAccessScope), requestedScope) ||
                 requestedAt == DateTime.MinValue ||
                 (requestExpiresAt.HasValue && requestExpiresAt.Value <= requestedAt)) return null;
             intelligence.Normalize();
@@ -21,7 +22,8 @@ namespace LosSantosRED.lsr
             string owner = ResolveOwningAgency(intelligence, investigation);
             if (investigation == null || investigation.Stage == InvestigationStage.Closed ||
                 investigation.Stage == InvestigationStage.Suspended || string.IsNullOrWhiteSpace(owner) ||
-                string.Equals(owner, requestingAgencyID, StringComparison.OrdinalIgnoreCase)) return null;
+                string.Equals(owner, requestingAgencyID, StringComparison.OrdinalIgnoreCase) ||
+                CanAccess(intelligence, investigationID, requestingAgencyID, requestedScope, requestedAt)) return null;
             InvestigationAccessRequest pending = intelligence.AccessRequests.FirstOrDefault(x =>
                 x != null && x.Status == InvestigationAccessRequestStatus.Pending &&
                 string.Equals(x.InvestigationID, investigationID, StringComparison.OrdinalIgnoreCase) &&
@@ -47,6 +49,7 @@ namespace LosSantosRED.lsr
         {
             if (intelligence == null || string.IsNullOrWhiteSpace(requestID) ||
                 string.IsNullOrWhiteSpace(decidingAgencyID) || decidedAt == DateTime.MinValue ||
+                (approve && !Enum.IsDefined(typeof(InvestigationAccessScope), approvedScope)) ||
                 (grantExpiresAt.HasValue && grantExpiresAt.Value <= decidedAt)) return false;
             intelligence.Normalize();
             InvestigationAccessRequest request = intelligence.AccessRequests.FirstOrDefault(x =>
@@ -176,6 +179,22 @@ namespace LosSantosRED.lsr
                 request.Status == InvestigationAccessRequestStatus.Pending &&
                 string.Equals(request.OwningAgencyID, owningAgencyID, StringComparison.OrdinalIgnoreCase))
                 .Select(request => request.Copy()).ToList();
+        }
+
+        public IEnumerable<IntelligenceAccessAuditEntry> GetAuditTrailForAgency(
+            LawEnforcementIntelligence intelligence, string investigationID, string owningAgencyID)
+        {
+            if (intelligence == null || string.IsNullOrWhiteSpace(investigationID) ||
+                string.IsNullOrWhiteSpace(owningAgencyID))
+                return Enumerable.Empty<IntelligenceAccessAuditEntry>();
+            intelligence.Normalize();
+            InvestigationRecord investigation = FindInvestigation(intelligence, investigationID);
+            string owner = ResolveOwningAgency(intelligence, investigation);
+            if (!string.Equals(owner, owningAgencyID, StringComparison.OrdinalIgnoreCase))
+                return Enumerable.Empty<IntelligenceAccessAuditEntry>();
+            return intelligence.AccessAuditEntries.Where(entry => entry != null &&
+                    string.Equals(entry.InvestigationID, investigationID, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(entry => entry.OccurredAt).Select(entry => entry.Copy()).ToList();
         }
 
         public void ProcessExpirations(LawEnforcementIntelligence intelligence, DateTime at)
