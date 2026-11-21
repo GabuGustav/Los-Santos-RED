@@ -39,8 +39,27 @@ namespace LosSantosRED.lsr
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-            return Issue(intelligence, issuedAt, type, priority, agencyID, jurisdictionID,
+            WarrantRecord warrant = Issue(intelligence, issuedAt, type, priority, agencyID, jurisdictionID,
                 crimeIDs, ownedBusinessIDs, residenceID, residenceConfidence, expiresAt);
+            if (warrant == null || intelligence.Observations == null) return warrant;
+
+            DateTime evidenceCutoff = issuedAt.AddDays(-30);
+            IEnumerable<IntelligenceObservation> supportingEvidence = intelligence.Observations
+                .Where(observation => observation != null && observation.IsKnownToPolice &&
+                    observation.IsVerified && observation.ObservedAt >= evidenceCutoff &&
+                    observation.ObservedAt <= issuedAt &&
+                    (observation.EvidenceType != IntelligenceEvidenceType.BusinessVisit ||
+                     intelligence.Warrants.Any(existingWarrant => existingWarrant != null &&
+                        existingWarrant.ID != warrant.ID &&
+                        existingWarrant.IssuedAt <= observation.ObservedAt)));
+
+            foreach (IntelligenceObservation observation in supportingEvidence)
+            {
+                if (!string.IsNullOrWhiteSpace(observation.ID) &&
+                    !warrant.EvidenceObservationIDs.Contains(observation.ID))
+                    warrant.EvidenceObservationIDs.Add(observation.ID);
+            }
+            return warrant;
         }
 
         public WarrantRecord FindActive(LawEnforcementIntelligence intelligence, string agencyID, string jurisdictionID)
