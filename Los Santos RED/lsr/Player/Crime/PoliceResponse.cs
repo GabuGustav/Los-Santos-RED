@@ -378,6 +378,8 @@ namespace LosSantosRED.lsr
 
                         bool directlyObserved = crimeSceneDescription.SeenByOfficers;
                         string zoneID = modPlayer.CurrentLocation?.CurrentZone?.InternalGameName;
+                        Vector3 observationPosition = crimeSceneDescription.PlaceSeen == Vector3.Zero
+                            ? modPlayer.Position : crimeSceneDescription.PlaceSeen;
                         modPlayer.LawEnforcementIntelligence.RecordObservation(new IntelligenceObservation
                         {
                             ObservedAt = modPlayer.CurrentDateTime,
@@ -391,9 +393,9 @@ namespace LosSantosRED.lsr
                             IsKnownToPolice = true,
                             IsVerified = directlyObserved,
                             Confidence = directlyObserved ? 0.95f : 0.7f,
-                            PositionX = crimeSceneDescription.PlaceSeen.X,
-                            PositionY = crimeSceneDescription.PlaceSeen.Y,
-                            PositionZ = crimeSceneDescription.PlaceSeen.Z,
+                            PositionX = observationPosition.X,
+                            PositionY = observationPosition.Y,
+                            PositionZ = observationPosition.Z,
                             LocationID = zoneID,
                             LocationName = zoneID,
                             Notes = directlyObserved
