@@ -573,7 +573,9 @@ public class AIApprehend : ComplexTask
             if (Ped.IsInVehicle || !CopsVehicle.Exists())
             {
                 IsTrafficStop = false;
-                Ped.CurrentTask = null;
+                global::Cop runtimeCop = Cop as global::Cop;
+                if (runtimeCop != null)
+                    runtimeCop.CurrentTask = null;
             }
         }
     }
