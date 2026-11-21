@@ -32,6 +32,11 @@ public class CopBrain : PedBrain
     private bool MemoryRecognizedVehicle;
     private bool WasRecognizedByPersonBOLO;
     private bool WasSeeingPlayerForBOLO;
+    private string LastObservedDrivingVehicleID;
+    private string LastObservedDrivingVehicleDescription;
+    private Vector3 LastObservedDrivingVehiclePosition;
+    private uint LastObservedDrivingVehicleAt;
+    private bool LastObservedPlayerWasDriving;
     public CopBrain(Cop cop, ISettingsProvideable settings, IEntityProvideable world, IWeapons weapons) : base(cop, settings, world, weapons)
     {
         Cop = cop;
@@ -59,7 +64,9 @@ public class CopBrain : PedBrain
             if (modPlayer?.LawEnforcementIntelligence != null)
             {
                 VehicleExt observedVehicle = Player.IsInVehicle ? Player.CurrentVehicle : null;
-                bool hasObservedVehicle = observedVehicle != null && observedVehicle.Vehicle.Exists();
+                bool hasObservedVehicle = observedVehicle != null && observedVehicle.Vehicle.Exists() &&
+                    observedVehicle.Vehicle.Driver.Exists() &&
+                    observedVehicle.Vehicle.Driver.Handle == Player.Character.Handle;
                 string vehicleID = null;
                 string vehicleDescription = null;
                 if (hasObservedVehicle)
@@ -78,7 +85,46 @@ public class CopBrain : PedBrain
                     Player.Position.X, Player.Position.Y, Player.Position.Z,
                     modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
                     modPlayer.CurrentLocation?.CurrentZone?.InternalGameName);
+
+                if (hasObservedVehicle && !string.IsNullOrWhiteSpace(vehicleID))
+                {
+                    LastObservedPlayerWasDriving = true;
+                    LastObservedDrivingVehicleID = vehicleID;
+                    LastObservedDrivingVehicleDescription = vehicleDescription;
+                    LastObservedDrivingVehiclePosition = observedVehicle.Vehicle.Position;
+                    LastObservedDrivingVehicleAt = Game.GameTime;
+                }
+                else if (Player.IsInVehicle)
+                {
+                    LastObservedPlayerWasDriving = false;
+                }
+                else if (LastObservedPlayerWasDriving)
+                {
+                    uint timeSinceDrivingObservation = Game.GameTime - LastObservedDrivingVehicleAt;
+                    float dx = Player.Position.X - LastObservedDrivingVehiclePosition.X;
+                    float dy = Player.Position.Y - LastObservedDrivingVehiclePosition.Y;
+                    float distanceFromVehicle = (float)Math.Sqrt(dx * dx + dy * dy);
+                    if (timeSinceDrivingObservation <= 2000 && distanceFromVehicle <= 15f)
+                    {
+                        modPlayer.LawEnforcementIntelligence.RecordPreviouslyDrivenVehicle(
+                            modPlayer.CurrentDateTime, Cop.Pedestrian.Handle.ToString(),
+                            LastObservedDrivingVehicleID, LastObservedDrivingVehicleDescription,
+                            LastObservedDrivingVehiclePosition.X, LastObservedDrivingVehiclePosition.Y,
+                            LastObservedDrivingVehiclePosition.Z,
+                            modPlayer.CurrentLocation?.CurrentZone?.InternalGameName,
+                            modPlayer.CurrentLocation?.CurrentZone?.InternalGameName);
+                    }
+                    LastObservedPlayerWasDriving = false;
+                    LastObservedDrivingVehicleID = null;
+                    LastObservedDrivingVehicleDescription = null;
+                }
             }
+        }
+        else
+        {
+            LastObservedPlayerWasDriving = false;
+            LastObservedDrivingVehicleID = null;
+            LastObservedDrivingVehicleDescription = null;
         }
         if (Cop.PlayerPerception.CanSeeTarget && Player.IsWanted && Player.IsInVehicle &&
             Player.CurrentVehicle != null && Player.CurrentVehicle.Vehicle.Exists() &&
