@@ -1,0 +1,29 @@
+name: Windows build
+
+on:
+  push:
+    branches:
+      - fix-or-feature-name
+  pull_request:
+    branches:
+      - fix-or-feature-name
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore packages
+        run: nuget restore "Los Santos RED/Los Santos RED.csproj" -ConfigFile "Los Santos RED/NuGet.Config" -NonInteractive
+
+      - name: Build Release x64
+        run: msbuild "Los Santos RED/Los Santos RED.csproj" /m /p:Configuration=Release /p:Platform=x64 /verbosity:minimal
